@@ -14,7 +14,7 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 
-TOKEN = "AAEm9TwoD4c8-ndZLAixw7KMBNaPTdF5Eys"
+TOKEN = "87208760:AAEm9TwoD4c8-ndZLAixw7KMBNaPTdF5Eys"
 
 ADMINS = [400900388, 1483857146]
 

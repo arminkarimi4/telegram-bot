@@ -21,7 +21,7 @@ from telegram import ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 
-TOKEN = "87208760:AAEm9TwoD4c8-ndZLAixw7KMBNaPTdF5Eys"
+TOKEN = "8720876053:AAEm9TwoD4c8-ndZLAixw7KMBNaPTdF5Eys"
 
 ADMINS = [400900388, 1483857146]
 

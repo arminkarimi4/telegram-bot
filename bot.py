@@ -1,10 +1,12 @@
+import json
+import os
+
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
     KeyboardButton,
     InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    BotCommand
+    InlineKeyboardButton
 )
 
 from telegram.ext import (
@@ -16,38 +18,95 @@ from telegram.ext import (
     filters
 )
 
-# =========================
+# ====================================
 # تنظیمات
-# =========================
+# ====================================
 
 TOKEN = "8720876053:AAEm9TwoD4c8-ndZLAixw7KMBNaPTdF5Eys"
 
-ADMINS = [400900388, 1483857146]
+ADMIN_ID = [
+    400900388,
+    1483857146
+]
 
-CHANNEL_IDS = [
+CHANNELS = [
     "@Shotor_AR",
     "@shotorAR_GP"
 ]
 
-CHANNEL_LINKS = [
-    "https://t.me/Shotor_AR",
-    "https://t.me/shotorAR_GP"
-]
+DB_FILE = "users.json"
 
-users = set()
+# ====================================
+# دیتابیس پیشفرض
+# ====================================
 
-# =========================
+DEFAULT_DATA = {
+    "users": {},
+    "plans": {
+        "camel_1": [],
+        "camel_2": [],
+        "camel_3": [],
+        "camel_4": []
+    }
+}
+
+# ====================================
+# ساخت دیتابیس
+# ====================================
+
+if not os.path.exists(DB_FILE):
+
+    with open(DB_FILE, "w") as f:
+        json.dump(
+            DEFAULT_DATA,
+            f,
+            indent=4
+        )
+
+# ====================================
+# توابع دیتابیس
+# ====================================
+
+def load_data():
+
+    try:
+
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+
+    except:
+
+        return DEFAULT_DATA.copy()
+
+def save_data(data):
+
+    with open(DB_FILE, "w") as f:
+        json.dump(
+            data,
+            f,
+            indent=4
+        )
+
+# ====================================
 # بررسی عضویت
-# =========================
+# ====================================
 
-async def check_membership(bot, user_id):
+async def check_membership(user_id, bot):
 
-    for channel in CHANNEL_IDS:
+    for channel in CHANNELS:
 
         try:
-            member = await bot.get_chat_member(channel, user_id)
 
-            if member.status in ["left", "kicked"]:
+            member = await bot.get_chat_member(
+                channel,
+                user_id
+            )
+
+            if member.status not in [
+                "member",
+                "administrator",
+                "creator"
+            ]:
                 return False
 
         except:
@@ -55,493 +114,668 @@ async def check_membership(bot, user_id):
 
     return True
 
-# =========================
-# دکمه عضویت
-# =========================
-
-def join_channels_keyboard():
-
-    keyboard = []
-
-    for i, link in enumerate(CHANNEL_LINKS):
-
-        keyboard.append([
-            InlineKeyboardButton(
-                f"عضویت در کانال {i+1}",
-                url=link
-            )
-        ])
-
-    keyboard.append([
-        InlineKeyboardButton(
-            "✅ بررسی عضویت",
-            callback_data="check_join"
-        )
-    ])
-
-    return InlineKeyboardMarkup(keyboard)
-
-# =========================
+# ====================================
 # پنل کاربر
-# =========================
+# ====================================
 
-def user_panel_keyboard(user_id):
+def user_panel(is_admin=False):
 
     keyboard = [
 
-        [KeyboardButton("حساب کاربری")],
+        [KeyboardButton("👤 حساب کاربری")],
 
         [KeyboardButton("🪙 دریافت سکه رایگان")],
 
         [KeyboardButton("🐪 دریافت شتر رایگان")],
 
-        [KeyboardButton("📩 دریافت شتر اختصاصی")]
+        [KeyboardButton("📩 خرید شتر اختصاصی")]
     ]
 
-    if user_id in ADMINS:
+    if is_admin:
 
-        keyboard.append([
-            KeyboardButton("⚙️ پنل مدیریت")
-        ])
+        keyboard.append(
+            [KeyboardButton("⚙️ پنل مدیریت")]
+        )
 
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True
     )
 
-# =========================
-# استارت
-# =========================
+# ====================================
+# پنل مدیریت
+# ====================================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def admin_panel():
+
+    keyboard = [
+
+        [KeyboardButton("📊 آمار کاربران")],
+
+        [KeyboardButton("📢 ارسال همگانی")],
+
+        [KeyboardButton("➕ شارژ پلن 1")],
+
+        [KeyboardButton("➕ شارژ پلن 2")],
+
+        [KeyboardButton("➕ شارژ پلن 3")],
+
+        [KeyboardButton("➕ شارژ پلن 4")],
+
+        [KeyboardButton("📦 موجودی پلن ها")]
+    ]
+
+    return ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True
+    )
+
+# ====================================
+# استارت
+# ====================================
+
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     user = update.effective_user
 
-    users.add(user.id)
+    data = load_data()
 
-    is_member = await check_membership(
-        context.bot,
-        user.id
+    users = data["users"]
+
+    user_id = str(user.id)
+
+    inviter = None
+
+    if context.args:
+
+        try:
+
+            inviter = str(context.args[0])
+
+            if inviter == user_id:
+                inviter = None
+
+        except:
+            inviter = None
+
+    if user_id not in users:
+
+        users[user_id] = {
+            "coins": 0,
+            "joined": False,
+            "invites": 0,
+            "invited_by": inviter
+        }
+
+        save_data(data)
+
+    joined = await check_membership(
+        user.id,
+        context.bot
     )
 
-    if not is_member:
+    if not joined:
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "عضویت کانال 1",
+                    url="https://t.me/Shotor_AR"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "عضویت کانال 2",
+                    url="https://t.me/shotorAR_GP"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "✅ بررسی عضویت",
+                    callback_data="check_join"
+                )
+            ]
+        ]
 
         await update.message.reply_text(
-            "❌ برای استفاده از ربات ابتدا در کانال ها عضو شوید.",
-            reply_markup=join_channels_keyboard()
+            "❌ ابتدا در کانال ها عضو شوید.",
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
 
         return
 
-    await update.message.reply_text(
-        "✅ عضویت شما تایید شد"
-    )
+    users[user_id]["joined"] = True
+
+    inviter_id = users[user_id]["invited_by"]
+
+    if inviter_id and inviter_id in users:
+
+        if not users[user_id].get("rewarded"):
+
+            users[inviter_id]["coins"] += 1
+            users[inviter_id]["invites"] += 1
+
+            users[user_id]["rewarded"] = True
+
+            try:
+
+                await context.bot.send_message(
+                    chat_id=int(inviter_id),
+                    text="""
+🎉 یک نفر با لینک شما عضو شد.
+
+✅ 1 سکه دریافت کردید.
+"""
+                )
+
+            except:
+                pass
+
+    save_data(data)
 
     await update.message.reply_text(
-        "✅ پنل اصلی",
-        reply_markup=user_panel_keyboard(user.id)
+        "✅ خوش آمدید.",
+        reply_markup=user_panel(
+            user.id in ADMIN_ID
+        )
     )
 
-# =========================
-# انتخاب زبان
-# =========================
+# ====================================
+# بررسی عضویت دکمه
+# ====================================
 
-async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_join_callback(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "🇮🇷 فارسی",
-                callback_data="lang_fa"
-            ),
+    query = update.callback_query
 
-            InlineKeyboardButton(
-                "🇬🇧 English",
-                callback_data="lang_en"
-            )
-        ]
-    ]
+    await query.answer()
 
-    await update.message.reply_text(
-        "🌐 زبان خود را انتخاب کنید:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+    user = query.from_user
+
+    joined = await check_membership(
+        user.id,
+        context.bot
     )
 
-# =========================
-# پنل مدیریت
-# =========================
+    if not joined:
 
-async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await query.message.reply_text(
+            "❌ هنوز عضو کانال ها نیستید."
+        )
 
-    user_id = update.effective_user.id
-
-    if user_id not in ADMINS:
         return
 
-    keyboard = [
+    data = load_data()
 
-        [
-            InlineKeyboardButton(
-                "👥 آمار کاربران",
-                callback_data="admin_stats"
-            )
-        ],
+    users = data["users"]
 
-        [
-            InlineKeyboardButton(
-                "📅 آمار روزانه",
-                callback_data="daily_stats"
-            )
-        ],
+    user_id = str(user.id)
 
-        [
-            InlineKeyboardButton(
-                "📋 لیست کاربران",
-                callback_data="admin_users"
-            )
-        ],
+    users[user_id]["joined"] = True
 
-        [
-            InlineKeyboardButton(
-                "📢 ارسال پیام همگانی",
-                callback_data="admin_broadcast"
-            )
-        ],
+    inviter_id = users[user_id]["invited_by"]
 
-        [
-            InlineKeyboardButton(
-                "📨 ارسال به یک کاربر",
-                callback_data="send_to_one"
-            )
-        ],
+    if inviter_id and inviter_id in users:
 
-        [
-            InlineKeyboardButton(
-                "🚫 بلاک کاربر",
-                callback_data="block_user"
-            )
-        ],
+        if not users[user_id].get("rewarded"):
 
-        [
-            InlineKeyboardButton(
-                "🐪 شارژ شتر رایگان",
-                callback_data="charge_camel"
-            )
-        ],
+            users[inviter_id]["coins"] += 1
+            users[inviter_id]["invites"] += 1
 
-        [
-            InlineKeyboardButton(
-                "🪙 شارژ سکه",
-                callback_data="charge_coin"
-            )
-        ]
-    ]
+            users[user_id]["rewarded"] = True
 
-    await update.message.reply_text(
-        "⚙️ پنل مدیریت",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+    save_data(data)
+
+    await query.message.reply_text(
+        "✅ عضویت تایید شد.",
+        reply_markup=user_panel(
+            user.id in ADMIN_ID
+        )
     )
 
-# =========================
-# پنل کاربر
-# =========================
+# ====================================
+# خرید پلن
+# ====================================
 
-async def user_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def buy_plan(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    user = query.from_user
+
+    user_id = str(user.id)
+
+    data = load_data()
+
+    users = data["users"]
+
+    plan = query.data
+
+    prices = {
+        "buy_camel_1": 1,
+        "buy_camel_2": 3,
+        "buy_camel_3": 5,
+        "buy_camel_4": 10
+    }
+
+    plan_map = {
+        "buy_camel_1": "camel_1",
+        "buy_camel_2": "camel_2",
+        "buy_camel_3": "camel_3",
+        "buy_camel_4": "camel_4"
+    }
+
+    if users[user_id]["coins"] < prices[plan]:
+
+        await query.message.reply_text(
+            "❌ سکه کافی ندارید."
+        )
+
+        return
+
+    db_plan = plan_map[plan]
+
+    if len(data["plans"][db_plan]) <= 0:
+
+        await query.message.reply_text(
+            "❌ موجودی این پلن تمام شده."
+        )
+
+        return
+
+    users[user_id]["coins"] -= prices[plan]
+
+    config = data["plans"][db_plan].pop(0)
+
+    save_data(data)
+
+    await query.message.reply_text(
+        f"""
+✅ خرید با موفقیت انجام شد.
+
+🔗 کانفیگ شما:
+
+{config}
+"""
+    )
+
+# ====================================
+# پیام ها
+# ====================================
+
+async def messages(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     text = update.message.text
 
     user = update.effective_user
 
+    user_id = str(user.id)
+
+    data = load_data()
+
+    users = data["users"]
+
+    # =========================
     # حساب کاربری
-    if text == "حساب کاربری":
+    # =========================
+
+    if text == "👤 حساب کاربری":
+
+        info = users[user_id]
 
         await update.message.reply_text(
             f"""
-👤 اطلاعات حساب
+👤 حساب کاربری
 
-🆔 آیدی عددی:
+🆔 آیدی:
 {user.id}
 
-👤 نام:
-{user.first_name}
+🪙 سکه:
+{info['coins']}
+
+👥 تعداد دعوت:
+{info['invites']}
 """
         )
 
-    # سکه رایگان
+    # =========================
+    # دریافت سکه رایگان
+    # =========================
+
     elif text == "🪙 دریافت سکه رایگان":
 
-        await update.message.reply_text(
-            "🪙 بزودی فعال می‌شود."
+        bot_username = (
+            await context.bot.get_me()
+        ).username
+
+        invite_link = (
+            f"https://t.me/{bot_username}"
+            f"?start={user.id}"
         )
 
-    # شتر رایگان
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "📨 اشتراک گذاری لینک",
+                    url=f"https://t.me/share/url?url={invite_link}"
+                )
+            ]
+        ]
+
+        await update.message.reply_text(
+            f"""
+🪙 دریافت سکه رایگان
+
+✅ با دعوت هر نفر:
+1 سکه رایگان دریافت می‌کنید.
+
+🔗 لینک اختصاصی شما:
+
+{invite_link}
+""",
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
+        )
+
+    # =========================
+    # دریافت شتر رایگان
+    # =========================
+
     elif text == "🐪 دریافت شتر رایگان":
 
         keyboard = [
 
             [
                 InlineKeyboardButton(
-                    "یک سکه / 10MB(🐪 استخونی)",
-                    callback_data="camel_1"
+                    "یک سکه / 10mg(🐪استخونی)",
+                    callback_data="buy_camel_1"
                 )
             ],
 
             [
                 InlineKeyboardButton(
-                    "سه سکه / 50MB(🐪 نی قلیون)",
-                    callback_data="camel_2"
+                    "سه سکه / 50mg(🐪نی قلیون)",
+                    callback_data="buy_camel_2"
                 )
             ],
 
             [
                 InlineKeyboardButton(
-                    "پنج سکه / 80MB(🐪 فیت)",
-                    callback_data="camel_3"
+                    "پنج سکه / 80mg(🐪فیت)",
+                    callback_data="buy_camel_3"
                 )
             ],
 
             [
                 InlineKeyboardButton(
-                    "ده سکه / 200MB(🐪 توپر)",
-                    callback_data="camel_4"
+                    "ده سکه / 200mg(🐪توپر)",
+                    callback_data="buy_camel_4"
                 )
             ]
         ]
 
         await update.message.reply_text(
-            "🐪 یکی از گزینه ها را انتخاب کنید:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            "🐪 یکی از پلن ها را انتخاب کنید:",
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
 
-    # شتر اختصاصی
-    elif text == "📩 دریافت شتر اختصاصی":
+    # =========================
+    # خرید اختصاصی
+    # =========================
 
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "📩 ارتباط با پشتیبانی",
-                    url="https://t.me/arminkarimi4"
-                )
-            ]
-        ]
+    elif text == "📩 خرید شتر اختصاصی":
 
         await update.message.reply_text(
-            "برای دریافت شتر اختصاصی به آیدی زیر پیام دهید:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            """
+📩 برای خرید شتر اختصاصی
+به آیدی زیر پیام دهید:
+
+@YOUR_ID
+"""
         )
 
+    # =========================
     # پنل مدیریت
+    # =========================
+
     elif text == "⚙️ پنل مدیریت":
 
-        await admin(update, context)
+        if user.id not in ADMIN_ID:
 
-# =========================
-# دکمه های اینلاین
-# =========================
+            return
 
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-
-    await query.answer()
-
-    data = query.data
-
-    user_id = query.from_user.id
-
-    # بررسی عضویت
-    if data == "check_join":
-
-        is_member = await check_membership(
-            context.bot,
-            user_id
+        await update.message.reply_text(
+            "⚙️ پنل مدیریت",
+            reply_markup=admin_panel()
         )
 
-        if not is_member:
-
-            await query.message.reply_text(
-                "❌ شما هنوز در همه کانال ها عضو نشده‌اید.",
-                reply_markup=join_channels_keyboard()
-            )
-
-        else:
-
-            await query.message.reply_text(
-                "✅ عضویت شما تایید شد"
-            )
-
-            await query.message.reply_text(
-                "✅ پنل اصلی",
-                reply_markup=user_panel_keyboard(user_id)
-            )
-
-    # شتر استخونی
-    elif data == "camel_1":
-
-        await query.message.reply_text(
-            "🐪 شتر استخونی بزودی ارسال می‌شود."
-        )
-
-    # شتر نی قلیون
-    elif data == "camel_2":
-
-        await query.message.reply_text(
-            "🐪 شتر نی قلیون بزودی ارسال می‌شود."
-        )
-
-    # شتر فیت
-    elif data == "camel_3":
-
-        await query.message.reply_text(
-            "🐪 شتر فیت بزودی ارسال می‌شود."
-        )
-
-    # شتر توپر
-    elif data == "camel_4":
-
-        await query.message.reply_text(
-            "🐪 شتر توپر بزودی ارسال می‌شود."
-        )
-
+    # =========================
     # آمار کاربران
-    elif data == "admin_stats":
+    # =========================
 
-        await query.message.reply_text(
-            f"👥 تعداد کاربران:\n{len(users)}"
+    elif text == "📊 آمار کاربران":
+
+        if user.id not in ADMIN_ID:
+
+            return
+
+        total_users = len(users)
+
+        await update.message.reply_text(
+            f"""
+📊 آمار ربات
+
+👥 تعداد کاربران:
+{total_users}
+"""
         )
 
-    # آمار روزانه
-    elif data == "daily_stats":
+    # =========================
+    # موجودی پلن ها
+    # =========================
 
-        await query.message.reply_text(
-            "📅 آمار روزانه بزودی اضافه می‌شود."
+    elif text == "📦 موجودی پلن ها":
+
+        if user.id not in ADMIN_ID:
+
+            return
+
+        text_msg = f"""
+📦 موجودی پلن ها
+
+پلن 1:
+{len(data['plans']['camel_1'])}
+
+پلن 2:
+{len(data['plans']['camel_2'])}
+
+پلن 3:
+{len(data['plans']['camel_3'])}
+
+پلن 4:
+{len(data['plans']['camel_4'])}
+"""
+
+        await update.message.reply_text(
+            text_msg
         )
 
-    # لیست کاربران
-    elif data == "admin_users":
+    # =========================
+    # شارژ پلن ها
+    # =========================
 
-        await query.message.reply_text(
-            "📋 لیست کاربران بزودی اضافه می‌شود."
+    elif text.startswith("➕ شارژ پلن"):
+
+        if user.id not in ADMIN_ID:
+
+            return
+
+        plan_number = text[-1]
+
+        context.user_data["waiting_plan"] = (
+            f"camel_{plan_number}"
         )
 
+        await update.message.reply_text(
+            """
+🔗 لینک ها را ارسال کنید.
+
+هر لینک در یک خط.
+"""
+        )
+
+    # =========================
+    # ذخیره لینک ها
+    # =========================
+
+    elif "waiting_plan" in context.user_data:
+
+        if user.id not in ADMIN_ID:
+
+            return
+
+        plan = context.user_data["waiting_plan"]
+
+        links = text.split("\n")
+
+        data["plans"][plan].extend(links)
+
+        save_data(data)
+
+        del context.user_data["waiting_plan"]
+
+        await update.message.reply_text(
+            "✅ لینک ها ذخیره شدند."
+        )
+
+    # =========================
     # ارسال همگانی
-    elif data == "admin_broadcast":
+    # =========================
 
-        await query.message.reply_text(
-            "📢 بخش ارسال همگانی بزودی اضافه می‌شود."
+    elif text == "📢 ارسال همگانی":
+
+        if user.id not in ADMIN_ID:
+
+            return
+
+        context.user_data["broadcast"] = True
+
+        await update.message.reply_text(
+            "📨 پیام همگانی را ارسال کنید."
         )
 
-    # ارسال به یک کاربر
-    elif data == "send_to_one":
+    # =========================
+    # انجام ارسال همگانی
+    # =========================
 
-        await query.message.reply_text(
-            "📨 بخش ارسال به یک کاربر بزودی اضافه می‌شود."
+    elif context.user_data.get("broadcast"):
+
+        if user.id not in ADMIN_ID:
+
+            return
+
+        sent = 0
+
+        failed = 0
+
+        for uid in users:
+
+            try:
+
+                await context.bot.send_message(
+                    chat_id=int(uid),
+                    text=text
+                )
+
+                sent += 1
+
+            except:
+
+                failed += 1
+
+        context.user_data["broadcast"] = False
+
+        await update.message.reply_text(
+            f"""
+✅ ارسال انجام شد.
+
+✔️ موفق:
+{sent}
+
+❌ ناموفق:
+{failed}
+"""
         )
 
-    # بلاک کاربر
-    elif data == "block_user":
-
-        await query.message.reply_text(
-            "🚫 بخش بلاک کاربر بزودی اضافه می‌شود."
-        )
-
-    # شارژ شتر
-    elif data == "charge_camel":
-
-        await query.message.reply_text(
-            "🐪 بخش شارژ شتر رایگان فعال شد."
-        )
-
-    # شارژ سکه
-    elif data == "charge_coin":
-
-        await query.message.reply_text(
-            "🪙 بخش شارژ سکه فعال شد."
-        )
-
-    # زبان فارسی
-    elif data == "lang_fa":
-
-        context.user_data["lang"] = "fa"
-
-        await query.message.reply_text(
-            "✅ زبان شما روی فارسی تنظیم شد."
-        )
-
-        await query.message.reply_text(
-            "♻️ برای شروع مجدد /start را بزنید."
-        )
-
-    # زبان انگلیسی
-    elif data == "lang_en":
-
-        context.user_data["lang"] = "en"
-
-        await query.message.reply_text(
-            "🇬🇧 Your language is set to English."
-        )
-
-        await query.message.reply_text(
-            "♻️ Press /start to restart."
-        )
-
-# =========================
-# منوی دستورات تلگرام
-# =========================
-
-async def set_commands(app):
-
-    commands = [
-
-        BotCommand(
-            "start",
-            "♻️ شروع مجدد"
-        ),
-
-        BotCommand(
-            "language",
-            "🌐 انتخاب زبان"
-        )
-    ]
-
-    await app.bot.set_my_commands(commands)
-
-# =========================
-# اجرای ربات
-# =========================
+# ====================================
+# main
+# ====================================
 
 def main():
 
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(
+        TOKEN
+    ).build()
 
-    # تنظیم منوی تلگرام
-    app.post_init = set_commands
-
-    # هندلرها
     app.add_handler(
-        CommandHandler("start", start)
+        CommandHandler(
+            "start",
+            start
+        )
     )
 
     app.add_handler(
-        CommandHandler("language", language)
+        CallbackQueryHandler(
+            check_join_callback,
+            pattern="check_join"
+        )
+    )
+
+    app.add_handler(
+        CallbackQueryHandler(
+            buy_plan,
+            pattern="buy_camel_"
+        )
     )
 
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
-            user_panel_handler
+            messages
         )
     )
 
-    app.add_handler(
-        CallbackQueryHandler(buttons)
-    )
-
-    print("Bot is running...")
+    print("Bot Running...")
 
     app.run_polling()
 
-# =========================
+# ====================================
+# اجرا
+# ====================================
 
 if __name__ == "__main__":
+
     main()

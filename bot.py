@@ -553,7 +553,7 @@ async def messages(
 📩 برای خرید شتر اختصاصی
 به آیدی زیر پیام دهید:
 
-@YOUR_ID
+@arminkarimi4
 """
         )
 

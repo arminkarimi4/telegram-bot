@@ -7,7 +7,8 @@ from telegram import (
     ReplyKeyboardMarkup,
     KeyboardButton,
     InlineKeyboardMarkup,
-    InlineKeyboardButton
+    InlineKeyboardButton,
+    MenuButtonCommands
 )
 
 from telegram.ext import (
@@ -51,7 +52,8 @@ DEFAULT_DATA = {
     },
     "blocked": [],
     "daily_join": [],
-    "last_day": str(datetime.date.today())
+    "last_day": str(datetime.date.today()),
+    "language": {}
 }
 
 # ====================================
@@ -74,6 +76,9 @@ def load_data():
             data = json.load(f)
     except:
         data = DEFAULT_DATA.copy()
+
+    if "language" not in data:
+        data["language"] = {}
 
     today = str(datetime.date.today())
 
@@ -129,6 +134,7 @@ def user_panel(is_admin=False):
         [KeyboardButton("🐪 دریافت شتر رایگان")],
 
         [KeyboardButton("📩 خرید شتر اختصاصی")]
+
     ]
 
     if is_admin:
@@ -204,10 +210,34 @@ def back():
     return ReplyKeyboardMarkup([[KeyboardButton("🔙 بازگشت")]],resize_keyboard=True)
 
 # ====================================
+# انتخاب زبان
+# ====================================
+
+async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    keyboard = [
+
+        [KeyboardButton("فارسی")],
+
+        [KeyboardButton("English")]
+
+    ]
+
+    await update.message.reply_text(
+        "زبان مورد نظر را انتخاب کنید",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard,
+            resize_keyboard=True
+        )
+    )
+
+# ====================================
 # استارت
 # ====================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    context.user_data.clear()    
 
     user = update.effective_user
 
@@ -400,7 +430,40 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     users = data["users"]
 
-    if text == "🔙 بازگشت":
+    # شروع مجدد
+    if text in ["شروع مجدد", "/start", "استارت"]:
+
+        await start(update, context)
+
+    # زبان فارسی
+    elif text == "فارسی":
+
+        data["language"][user_id] = "fa"
+
+        save_data(data)
+
+        await update.message.reply_text(
+            "✅ زبان روی فارسی تنظیم شد",
+            reply_markup=user_panel(
+                user.id in ADMIN_ID
+            )
+        )
+
+    # زبان انگلیسی
+    elif text == "English":
+
+        data["language"][user_id] = "en"
+
+        save_data(data)
+
+        await update.message.reply_text(
+            "✅ Language changed to English",
+            reply_markup=user_panel(
+                user.id in ADMIN_ID
+            )
+        )
+
+    elif text == "🔙 بازگشت":
 
         context.user_data.clear()
 
@@ -628,6 +691,17 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 # ====================================
+# تنظیم منوی تلگرام
+# ====================================
+
+async def set_menu(app):
+
+    await app.bot.set_my_commands([
+        ("start", "شروع مجدد"),
+        ("language", "تغییر زبان")
+    ])
+
+# ====================================
 # main
 # ====================================
 
@@ -637,6 +711,10 @@ def main():
         TOKEN
     ).build()
 
+    # تنظیم منوی تلگرام
+    app.post_init = set_menu
+
+    # دستورات
     app.add_handler(
         CommandHandler(
             "start",
@@ -644,6 +722,14 @@ def main():
         )
     )
 
+    app.add_handler(
+        CommandHandler(
+            "language",
+            language_command
+        )
+    )
+
+    # کال‌بک‌ها
     app.add_handler(
         CallbackQueryHandler(
             check_join_callback,
@@ -665,6 +751,7 @@ def main():
         )
     )
 
+    # پیام ها
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,

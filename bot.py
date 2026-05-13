@@ -142,8 +142,10 @@ def user_menu(admin=False):
 
     keyboard = [
         [KeyboardButton("👤 حساب من")],
+        
         [KeyboardButton("🪙 دریافت سکه رایگان")],
         [KeyboardButton("🐪 دریافت شتر رایگان")],
+        
         [KeyboardButton("🛒 خرید شتر اختصاصی")],
         [KeyboardButton("🆘 پشتیبانی")]
     ]
@@ -818,10 +820,9 @@ async def messages(update: Update,
             "vless://",
            "vmess://",
            "trojan://",
-           "ss://"
            ))
     ]
-
+        
         db["plans"][plan].extend(links)
 
         save_db(db)

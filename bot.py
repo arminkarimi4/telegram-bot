@@ -811,7 +811,16 @@ async def messages(update: Update,
 
         plan = context.user_data["add_plan"]
 
-        links = text.split("\n")
+        links = [
+        i.strip()
+        for i in text.split("\n")
+        if i.strip().startswith((
+            "vless://",
+           "vmess://",
+           "trojan://",
+           "ss://"
+           ))
+    ]
 
         db["plans"][plan].extend(links)
 
@@ -820,9 +829,10 @@ async def messages(update: Update,
         context.user_data.clear()
 
         await update.message.reply_text(
-            "✅ لینک ها ذخیره شدند",
+            f"✅ {len(links)} کانفیگ ذخیره شد",
             reply_markup=plans_menu()
-        )
+    )
+
 
     # =====================
     # STOCK

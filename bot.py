@@ -189,23 +189,80 @@ def admin_menu():
 def plans_menu():
 
     keyboard = [
-        [KeyboardButton("➕ شارژ پلن 1"),
-         KeyboardButton("➕ شارژ پلن 2")],
 
-        [KeyboardButton("➕ شارژ پلن 3"),
-         KeyboardButton("➕ شارژ پلن 4")],
+        [
+            InlineKeyboardButton(
+                "➕ شارژ پلن 1",
+                callback_data="add_plan1"
+            ),
 
-        [KeyboardButton("📦 موجودی پلن ها")],
+            InlineKeyboardButton(
+                "🗑 حذف پلن 1",
+                callback_data="clear_plan1"
+            )
+        ],
 
-        [KeyboardButton("🗑 حذف لینک خراب")],
+        [
+            InlineKeyboardButton(
+                "➕ شارژ پلن 2",
+                callback_data="add_plan2"
+            ),
 
-        [KeyboardButton("🔙 بازگشت")]
+            InlineKeyboardButton(
+                "🗑 حذف پلن 2",
+                callback_data="clear_plan2"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "➕ شارژ پلن 3",
+                callback_data="add_plan3"
+            ),
+
+            InlineKeyboardButton(
+                "🗑 حذف پلن 3",
+                callback_data="clear_plan3"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "➕ شارژ پلن 4",
+                callback_data="add_plan4"
+            ),
+
+            InlineKeyboardButton(
+                "🗑 حذف پلن 4",
+                callback_data="clear_plan4"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📦 موجودی پلن ها",
+                callback_data="stock"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🗑 حذف لینک خراب",
+                callback_data="delete_bad"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🔙 بازگشت",
+                callback_data="back_admin"
+            )
+        ]
+
     ]
 
-    return ReplyKeyboardMarkup(
-        keyboard,
-        resize_keyboard=True
-    )
+    return InlineKeyboardMarkup(keyboard)
+
 
 def back_menu():
 
@@ -409,6 +466,10 @@ async def buy_plan(update: Update,
     uid = str(query.from_user.id)
 
     db = load_db()
+    
+    if plan not in db["plans"]:
+        await query.message.reply_text("❌ پلن موردنظر در دسترس نیست.")
+        return
 
     user = db["users"][uid]
 
@@ -456,6 +517,10 @@ async def messages(update: Update,
     db = load_db()
 
     users = db["users"]
+    
+    if uid not in users:
+        return
+
 
     # =====================
     # CANCEL
@@ -793,22 +858,6 @@ async def messages(update: Update,
     # ADD PLANS
     # =====================
 
-    elif "➕ شارژ پلن" in text:
-
-        number = text[-1]
-
-        context.user_data.clear()
-
-        context.user_data["add_plan"] = f"camel_{number}"
-
-        await update.message.reply_text(
-
-            "لینک ها را ارسال کنید\n"
-            "هر لینک در یک خط",
-
-            reply_markup=back_menu()
-        )
-
     elif context.user_data.get("add_plan"):
 
         plan = context.user_data["add_plan"]
@@ -834,40 +883,9 @@ async def messages(update: Update,
             reply_markup=plans_menu()
     )
 
-
-    # =====================
-    # STOCK
-    # =====================
-
-    elif text == "📦 موجودی پلن ها":
-
-        msg = "📦 موجودی:\n\n"
-
-        for p in db["plans"]:
-
-            msg += (
-                f"{p} : "
-                f"{len(db['plans'][p])}\n"
-            )
-
-        await update.message.reply_text(msg)
-
     # =====================
     # DELETE BAD LINK
     # =====================
-
-    elif text == "🗑 حذف لینک خراب":
-
-        context.user_data.clear()
-
-        context.user_data["delete_link"] = True
-
-        await update.message.reply_text(
-
-            "لینک خراب را کامل ارسال کنید",
-
-            reply_markup=back_menu()
-        )
 
     elif context.user_data.get("delete_link"):
 
@@ -951,6 +969,72 @@ async def error_handler(update, context):
 
     print("ERROR:", context.error)
 
+async def plans_callback(update: Update,
+                         context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    db = load_db()
+
+    # بازگشت به پنل مدیریت
+    if data == "back_admin":
+
+        await query.message.reply_text(
+            "⚙️ پنل مدیریت",
+            reply_markup=admin_menu()
+        )
+
+    # موجودی پلن ها
+    elif data == "stock":
+
+        msg = "📦 موجودی پلن ها\n\n"
+
+        for p in db["plans"]:
+            msg += f"{p} : {len(db['plans'][p])}\n"
+
+        await query.message.reply_text(msg)
+
+    # حذف لینک خراب
+    elif data == "delete_bad":
+
+        context.user_data.clear()
+        context.user_data["delete_link"] = True
+
+        await query.message.reply_text(
+            "لینک خراب را ارسال کنید",
+            reply_markup=back_menu()
+        )
+
+    # شارژ پلن
+    elif data.startswith("add_plan"):
+
+        number = data[-1]
+
+        context.user_data.clear()
+        context.user_data["add_plan"] = f"camel_{number}"
+
+        await query.message.reply_text(
+            "لینک ها را ارسال کنید\nهر لینک در یک خط",
+            reply_markup=back_menu()
+        )
+
+    # حذف کامل پلن
+    elif data.startswith("clear_plan"):
+
+        number = data[-1]
+
+        db["plans"][f"camel_{number}"] = []
+
+        save_db(db)
+
+        await query.message.reply_text(
+            f"✅ پلن {number} پاک شد",
+            reply_markup=plans_menu()
+        )
+
+
 # =========================
 # MAIN
 # =========================
@@ -984,6 +1068,14 @@ def main():
             pattern="buy_"
         )
     )
+    
+    app.add_handler(
+        CallbackQueryHandler(
+            plans_callback,
+            pattern="^(add_plan|clear_plan|stock|delete_bad|back_admin)"
+        )
+    )
+    
 
     app.add_handler(
         MessageHandler(
@@ -999,10 +1091,6 @@ def main():
     print("BOT RUNNING...")
 
     app.run_polling()
-
-# =========================
-# RUN
-# =========================
 
 if __name__ == "__main__":
     main()

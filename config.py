@@ -35,11 +35,11 @@ LOW_STOCK_WARNING = 3
 
 REQUIRED_CHATS = [
     {
-        "chat_id": "@YourChannelUsername",
+        "chat_id": "@Shotor_AR",
         "title": "کانال اصلی"
     },
     {
-        "chat_id": "@YourGroupUsername",
+        "chat_id": "@shotorAR_GP",
         "title": "گروه پشتیبانی"
     }
 ]

@@ -1,10 +1,11 @@
 # =========================
-# SUPER PROFESSIONAL TELEGRAM BOT
+# ULTRA SECURE TELEGRAM BOT
 # Python Telegram Bot v20+
 # =========================
 
 import json
 import os
+import time
 import datetime
 import logging
 
@@ -50,6 +51,9 @@ PLAN_PRICE = {
     "camel_4": 10
 }
 
+BUY_COOLDOWN = 15
+INVITE_REWARD = 1
+
 # =========================
 # LOGGING
 # =========================
@@ -81,27 +85,39 @@ DEFAULT_DB = {
 # =========================
 
 if not os.path.exists(DB_FILE):
+
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(DEFAULT_DB, f, indent=4, ensure_ascii=False)
+
+        json.dump(
+            DEFAULT_DB,
+            f,
+            indent=4,
+            ensure_ascii=False
+        )
 
 # =========================
-# DATABASE FUNCTIONS
+# DATABASE
 # =========================
 
 def load_db():
 
     try:
+
         with open(DB_FILE, "r", encoding="utf-8") as f:
+
             data = json.load(f)
 
     except:
+
         data = DEFAULT_DB.copy()
 
     today = str(datetime.date.today())
 
-    if data["last_day"] != today:
+    if data.get("last_day") != today:
+
         data["daily_users"] = []
         data["last_day"] = today
+
         save_db(data)
 
     return data
@@ -109,7 +125,27 @@ def load_db():
 def save_db(data):
 
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+
+        json.dump(
+            data,
+            f,
+            indent=4,
+            ensure_ascii=False
+        )
+
+# =========================
+# USER DEFAULT
+# =========================
+
+def create_user(inviter=None):
+
+    return {
+        "coins": 0,
+        "invites": 0,
+        "joined": str(datetime.date.today()),
+        "invited_by": inviter,
+        "last_buy": 0
+    }
 
 # =========================
 # MEMBERSHIP CHECK
@@ -120,7 +156,11 @@ async def check_join(user_id, bot):
     for ch in CHANNELS:
 
         try:
-            member = await bot.get_chat_member(ch, user_id)
+
+            member = await bot.get_chat_member(
+                ch,
+                user_id
+            )
 
             if member.status not in [
                 "member",
@@ -129,10 +169,58 @@ async def check_join(user_id, bot):
             ]:
                 return False
 
-        except:
+        except Exception as e:
+
+            print("JOIN ERROR:", e)
+
             return False
 
     return True
+
+# =========================
+# FORCE JOIN
+# =========================
+
+async def force_join(update, context):
+
+    joined = await check_join(
+        update.effective_user.id,
+        context.bot
+    )
+
+    if joined:
+        return True
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "عضویت کانال",
+                url="https://t.me/Shotor_AR"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "عضویت گروه",
+                url="https://t.me/shotorAR_GP"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "✅ بررسی عضویت",
+                callback_data="check_join"
+            )
+        ]
+    ]
+
+    await update.effective_message.reply_text(
+        "❌ ابتدا عضو کانال ها شوید",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    return False
 
 # =========================
 # MENUS
@@ -141,16 +229,20 @@ async def check_join(user_id, bot):
 def user_menu(admin=False):
 
     keyboard = [
+
         [KeyboardButton("👤 حساب من")],
-        
+
         [KeyboardButton("🪙 دریافت سکه رایگان")],
+
         [KeyboardButton("🐪 دریافت شتر رایگان")],
-        
+
         [KeyboardButton("🛒 خرید شتر اختصاصی")],
+
         [KeyboardButton("🆘 پشتیبانی")]
     ]
 
     if admin:
+
         keyboard.append(
             [KeyboardButton("⚙️ پنل مدیریت")]
         )
@@ -163,22 +255,37 @@ def user_menu(admin=False):
 def admin_menu():
 
     keyboard = [
-        [KeyboardButton("📊 آمار کاربران"),
-         KeyboardButton("📈 آمار روزانه")],
 
-        [KeyboardButton("📋 لیست کاربران")],
+        [
+            KeyboardButton("📊 آمار کاربران"),
+            KeyboardButton("📈 آمار روزانه")
+        ],
 
-        [KeyboardButton("📨 پیام به کاربر"),
-         KeyboardButton("📢 ارسال همگانی")],
+        [
+            KeyboardButton("📋 لیست کاربران")
+        ],
 
-        [KeyboardButton("⛔ بلاک کاربر"),
-         KeyboardButton("✅ آنبلاک کاربر")],
+        [
+            KeyboardButton("📨 پیام به کاربر"),
+            KeyboardButton("📢 ارسال همگانی")
+        ],
 
-        [KeyboardButton("🛠 مدیریت پلن ها")],
+        [
+            KeyboardButton("⛔ بلاک کاربر"),
+            KeyboardButton("✅ آنبلاک کاربر")
+        ],
 
-        [KeyboardButton("🔄 ریست وضعیت")],
+        [
+            KeyboardButton("🛠 مدیریت پلن ها")
+        ],
 
-        [KeyboardButton("🔙 بازگشت")]
+        [
+            KeyboardButton("🔄 ریست وضعیت")
+        ],
+
+        [
+            KeyboardButton("🔙 بازگشت")
+        ]
     ]
 
     return ReplyKeyboardMarkup(
@@ -258,11 +365,9 @@ def plans_menu():
                 callback_data="back_admin"
             )
         ]
-
     ]
 
     return InlineKeyboardMarkup(keyboard)
-
 
 def back_menu():
 
@@ -278,8 +383,11 @@ def back_menu():
 async def set_commands(app):
 
     commands = [
+
         BotCommand("start", "شروع ربات"),
+
         BotCommand("panel", "پنل مدیریت"),
+
         BotCommand("restart", "ریست وضعیت")
     ]
 
@@ -289,7 +397,8 @@ async def set_commands(app):
 # START
 # =========================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update,
+                context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data.clear()
 
@@ -304,72 +413,54 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "❌ شما بلاک شده اید"
         )
+
         return
 
     inviter = None
 
     if context.args:
-        inviter = context.args[0]
 
+        inviter = str(context.args[0])
+
+    # جلوگیری از self invite
+    if inviter == uid:
+
+        inviter = None
+
+    # ساخت کاربر
     if uid not in db["users"]:
 
-        db["users"][uid] = {
-            "coins": 0,
-            "invites": 0,
-            "joined": str(datetime.date.today()),
-            "invited_by": inviter
-        }
+        db["users"][uid] = create_user()
 
         db["daily_users"].append(uid)
 
-        if inviter and inviter in db["users"]:
+        # پاداش دعوت
+        if (
+            inviter
+            and inviter in db["users"]
+            and inviter != uid
+        ):
 
-            db["users"][inviter]["coins"] += 1
+            db["users"][uid]["invited_by"] = inviter
+
+            db["users"][inviter]["coins"] += INVITE_REWARD
+
             db["users"][inviter]["invites"] += 1
 
             try:
+
                 await context.bot.send_message(
                     inviter,
-                    "🎉 یک نفر با لینک شما عضو شد\n"
-                    "✅ 1 سکه دریافت کردید"
+                    f"🎉 کاربر جدید عضو شد\n✅ {INVITE_REWARD} سکه دریافت کردید"
                 )
+
             except:
                 pass
 
         save_db(db)
 
-    joined = await check_join(user.id, context.bot)
-
-    if not joined:
-
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "عضویت کانال",
-                    url="https://t.me/Shotor_AR"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "عضویت گروه",
-                    url="https://t.me/shotorAR_GP"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "✅ بررسی عضویت",
-                    callback_data="check_join"
-                )
-            ]
-        ]
-
-        await update.message.reply_text(
-            "ابتدا عضو کانال ها شوید",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
+    # عضویت اجباری
+    if not await force_join(update, context):
         return
 
     await update.message.reply_text(
@@ -418,21 +509,21 @@ async def buy_menu(update, context):
 
         [
             InlineKeyboardButton(
-                "یک سکه / 10mg(🐪استخونی)",
+                "یک سکه / 15MB(🐪استخونی)",
                 callback_data="buy_camel_1"
             )
         ],
 
         [
             InlineKeyboardButton(
-                "سه سکه / 50mg(🐪نی قلیون)",
+                "سه سکه / 50MB(🐪نی قلیون)",
                 callback_data="buy_camel_2"
             )
         ],
 
         [
             InlineKeyboardButton(
-                "پنج سکه / 80mg(🐪فیت)",
+                "پنج سکه / 80MB(🐪فیت)",
                 callback_data="buy_camel_3"
             )
         ],
@@ -446,7 +537,7 @@ async def buy_menu(update, context):
     ]
 
     await update.message.reply_text(
-        "پلن مورد نظر را انتخاب کنید",
+        "پلن موردنظر را انتخاب کنید",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -461,17 +552,55 @@ async def buy_plan(update: Update,
 
     await query.answer()
 
-    plan = query.data.replace("buy_", "")
-
     uid = str(query.from_user.id)
 
     db = load_db()
-    
+
+    # چک بلاک
+    if uid in db["blocked"]:
+
+        return
+
+    # چک عضویت
+    joined = await check_join(
+        query.from_user.id,
+        context.bot
+    )
+
+    if not joined:
+
+        await query.message.reply_text(
+            "❌ ابتدا عضو کانال ها شوید"
+        )
+
+        return
+
+    if uid not in db["users"]:
+
+        return
+
+    plan = query.data.replace("buy_", "")
+
     if plan not in db["plans"]:
-        await query.message.reply_text("❌ پلن موردنظر در دسترس نیست.")
+
+        await query.message.reply_text(
+            "❌ پلن نامعتبر"
+        )
+
         return
 
     user = db["users"][uid]
+
+    # cooldown
+    now = time.time()
+
+    if now - user.get("last_buy", 0) < BUY_COOLDOWN:
+
+        await query.message.reply_text(
+            f"⏳ لطفا {BUY_COOLDOWN} ثانیه صبر کنید"
+        )
+
+        return
 
     price = PLAN_PRICE[plan]
 
@@ -495,6 +624,8 @@ async def buy_plan(update: Update,
 
     user["coins"] -= price
 
+    user["last_buy"] = now
+
     save_db(db)
 
     await query.message.reply_text(
@@ -517,10 +648,21 @@ async def messages(update: Update,
     db = load_db()
 
     users = db["users"]
-    
-    if uid not in users:
+
+    # بلاک
+    if uid in db["blocked"]:
+
         return
 
+    # وجود کاربر
+    if uid not in users:
+
+        return
+
+    # عضویت اجباری
+    if not await force_join(update, context):
+
+        return
 
     # =====================
     # CANCEL
@@ -532,7 +674,9 @@ async def messages(update: Update,
 
         await update.message.reply_text(
             "✅ عملیات لغو شد",
-            reply_markup=user_menu(user.id in ADMINS)
+            reply_markup=user_menu(
+                user.id in ADMINS
+            )
         )
 
         return
@@ -547,7 +691,9 @@ async def messages(update: Update,
 
         await update.message.reply_text(
             "✅ بازگشت",
-            reply_markup=user_menu(user.id in ADMINS)
+            reply_markup=user_menu(
+                user.id in ADMINS
+            )
         )
 
         return
@@ -560,7 +706,9 @@ async def messages(update: Update,
 
         data = users[uid]
 
-        bot_username = (await context.bot.get_me()).username
+        bot_username = (
+            await context.bot.get_me()
+        ).username
 
         invite_link = (
             f"https://t.me/{bot_username}?start={uid}"
@@ -571,7 +719,9 @@ async def messages(update: Update,
             f"👤 اطلاعات حساب\n\n"
 
             f"🆔 آیدی: {uid}\n"
+
             f"🪙 سکه: {data['coins']}\n"
+
             f"👥 دعوت ها: {data['invites']}\n\n"
 
             f"🔗 لینک دعوت:\n{invite_link}"
@@ -583,7 +733,9 @@ async def messages(update: Update,
 
     elif text == "🪙 دریافت سکه رایگان":
 
-        bot_username = (await context.bot.get_me()).username
+        bot_username = (
+            await context.bot.get_me()
+        ).username
 
         link = (
             f"https://t.me/{bot_username}?start={uid}"
@@ -591,12 +743,13 @@ async def messages(update: Update,
 
         await update.message.reply_text(
 
-            "✅ با دعوت هر نفر 1 سکه بگیر\n\n"
+            "✅ با دعوت هر نفر سکه بگیر\n\n"
+
             f"{link}"
         )
 
     # =====================
-    # FREE CAMEL
+    # BUY
     # =====================
 
     elif text == "🐪 دریافت شتر رایگان":
@@ -604,12 +757,13 @@ async def messages(update: Update,
         await buy_menu(update, context)
 
     # =====================
-    # BUY SPECIAL
+    # SUPPORT
     # =====================
 
     elif text == "🛒 خرید شتر اختصاصی":
 
         keyboard = [[
+
             InlineKeyboardButton(
                 "ارتباط با پشتیبانی",
                 url=f"https://t.me/{SUPPORT_ID.replace('@','')}"
@@ -621,13 +775,10 @@ async def messages(update: Update,
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    # =====================
-    # SUPPORT
-    # =====================
-
     elif text == "🆘 پشتیبانی":
 
         keyboard = [[
+
             InlineKeyboardButton(
                 "پشتیبانی",
                 url=f"https://t.me/{SUPPORT_ID.replace('@','')}"
@@ -666,10 +817,6 @@ async def messages(update: Update,
             f"👥 تعداد کل کاربران: {len(users)}"
         )
 
-    # =====================
-    # DAILY
-    # =====================
-
     elif text == "📈 آمار روزانه":
 
         if user.id not in ADMINS:
@@ -690,10 +837,13 @@ async def messages(update: Update,
 
         msg = "\n".join(users.keys())
 
-        if msg == "":
+        if not msg:
+
             msg = "لیست خالی است"
 
-        await update.message.reply_text(msg[:4000])
+        await update.message.reply_text(
+            msg[:4000]
+        )
 
     # =====================
     # BROADCAST
@@ -701,12 +851,15 @@ async def messages(update: Update,
 
     elif text == "📢 ارسال همگانی":
 
+        if user.id not in ADMINS:
+            return
+
         context.user_data.clear()
 
         context.user_data["broadcast"] = True
 
         await update.message.reply_text(
-            "پیام همگانی را ارسال کنید",
+            "پیام را ارسال کنید",
             reply_markup=back_menu()
         )
 
@@ -717,9 +870,10 @@ async def messages(update: Update,
         for u in users:
 
             try:
+
                 await context.bot.send_message(
-                    u,
-                    text
+                    chat_id=int(u),
+                    text=text
                 )
 
                 sent += 1
@@ -735,10 +889,13 @@ async def messages(update: Update,
         )
 
     # =====================
-    # PRIVATE MESSAGE
+    # PM
     # =====================
 
     elif text == "📨 پیام به کاربر":
+
+        if user.id not in ADMINS:
+            return
 
         context.user_data.clear()
 
@@ -750,6 +907,14 @@ async def messages(update: Update,
         )
 
     elif context.user_data.get("pm_user"):
+
+        if not text.isdigit():
+
+            await update.message.reply_text(
+                "❌ آیدی نامعتبر"
+            )
+
+            return
 
         context.user_data["target_user"] = text
 
@@ -766,7 +931,7 @@ async def messages(update: Update,
         try:
 
             await context.bot.send_message(
-                context.user_data["target_user"],
+                int(context.user_data["target_user"]),
                 text
             )
 
@@ -789,7 +954,8 @@ async def messages(update: Update,
 
     elif text == "⛔ بلاک کاربر":
 
-        context.user_data.clear()
+        if user.id not in ADMINS:
+            return
 
         context.user_data["block"] = True
 
@@ -809,7 +975,7 @@ async def messages(update: Update,
         context.user_data.clear()
 
         await update.message.reply_text(
-            "✅ کاربر بلاک شد",
+            "✅ بلاک شد",
             reply_markup=admin_menu()
         )
 
@@ -819,12 +985,13 @@ async def messages(update: Update,
 
     elif text == "✅ آنبلاک کاربر":
 
-        context.user_data.clear()
+        if user.id not in ADMINS:
+            return
 
         context.user_data["unblock"] = True
 
         await update.message.reply_text(
-            "آیدی کاربر را ارسال کنید",
+            "آیدی را ارسال کنید",
             reply_markup=back_menu()
         )
 
@@ -839,7 +1006,7 @@ async def messages(update: Update,
         context.user_data.clear()
 
         await update.message.reply_text(
-            "✅ کاربر آنبلاک شد",
+            "✅ آنبلاک شد",
             reply_markup=admin_menu()
         )
 
@@ -849,13 +1016,16 @@ async def messages(update: Update,
 
     elif text == "🛠 مدیریت پلن ها":
 
+        if user.id not in ADMINS:
+            return
+
         await update.message.reply_text(
             "مدیریت پلن ها",
             reply_markup=plans_menu()
         )
 
     # =====================
-    # ADD PLANS
+    # ADD PLAN
     # =====================
 
     elif context.user_data.get("add_plan"):
@@ -863,25 +1033,32 @@ async def messages(update: Update,
         plan = context.user_data["add_plan"]
 
         links = [
-        i.strip()
-        for i in text.split("\n")
-        if i.strip().startswith((
-            "vless://",
-           "vmess://",
-           "trojan://",
-           ))
-    ]
-        
-        db["plans"][plan].extend(links)
+
+            i.strip()
+
+            for i in text.split("\n")
+
+            if i.strip().startswith(
+                (
+                    "vless://",
+                    "vmess://",
+                    "trojan://"
+                )
+            )
+        ]
+
+        unique_links = list(set(links))
+
+        db["plans"][plan].extend(unique_links)
 
         save_db(db)
 
         context.user_data.clear()
 
         await update.message.reply_text(
-            f"✅ {len(links)} کانفیگ ذخیره شد",
+            f"✅ {len(unique_links)} کانفیگ ذخیره شد",
             reply_markup=plans_menu()
-    )
+        )
 
     # =====================
     # DELETE BAD LINK
@@ -926,12 +1103,94 @@ async def messages(update: Update,
         context.user_data.clear()
 
         await update.message.reply_text(
-            "✅ وضعیت ها ریست شدند",
+            "✅ وضعیت ریست شد",
             reply_markup=admin_menu()
         )
 
 # =========================
-# RESTART COMMAND
+# CALLBACKS
+# =========================
+
+async def plans_callback(update: Update,
+                         context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+    data = query.data
+
+    db = load_db()
+
+    if query.from_user.id not in ADMINS:
+        return
+
+    # BACK
+    if data == "back_admin":
+
+        await query.message.reply_text(
+            "⚙️ پنل مدیریت",
+            reply_markup=admin_menu()
+        )
+
+    # STOCK
+    elif data == "stock":
+
+        msg = "📦 موجودی پلن ها\n\n"
+
+        for p in db["plans"]:
+
+            msg += (
+                f"{p} : "
+                f"{len(db['plans'][p])}\n"
+            )
+
+        await query.message.reply_text(msg)
+
+    # DELETE BAD
+    elif data == "delete_bad":
+
+        context.user_data.clear()
+
+        context.user_data["delete_link"] = True
+
+        await query.message.reply_text(
+            "لینک خراب را ارسال کنید",
+            reply_markup=back_menu()
+        )
+
+    # ADD PLAN
+    elif data.startswith("add_plan"):
+
+        number = data[-1]
+
+        context.user_data.clear()
+
+        context.user_data["add_plan"] = (
+            f"camel_{number}"
+        )
+
+        await query.message.reply_text(
+            "لینک ها را ارسال کنید",
+            reply_markup=back_menu()
+        )
+
+    # CLEAR PLAN
+    elif data.startswith("clear_plan"):
+
+        number = data[-1]
+
+        db["plans"][f"camel_{number}"] = []
+
+        save_db(db)
+
+        await query.message.reply_text(
+            f"✅ پلن {number} پاک شد",
+            reply_markup=plans_menu()
+        )
+
+# =========================
+# RESTART
 # =========================
 
 async def restart(update: Update,
@@ -947,7 +1206,7 @@ async def restart(update: Update,
     )
 
 # =========================
-# PANEL COMMAND
+# PANEL
 # =========================
 
 async def panel(update: Update,
@@ -962,78 +1221,12 @@ async def panel(update: Update,
     )
 
 # =========================
-# ERROR HANDLER
+# ERROR
 # =========================
 
 async def error_handler(update, context):
 
     print("ERROR:", context.error)
-
-async def plans_callback(update: Update,
-                         context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    db = load_db()
-
-    # بازگشت به پنل مدیریت
-    if data == "back_admin":
-
-        await query.message.reply_text(
-            "⚙️ پنل مدیریت",
-            reply_markup=admin_menu()
-        )
-
-    # موجودی پلن ها
-    elif data == "stock":
-
-        msg = "📦 موجودی پلن ها\n\n"
-
-        for p in db["plans"]:
-            msg += f"{p} : {len(db['plans'][p])}\n"
-
-        await query.message.reply_text(msg)
-
-    # حذف لینک خراب
-    elif data == "delete_bad":
-
-        context.user_data.clear()
-        context.user_data["delete_link"] = True
-
-        await query.message.reply_text(
-            "لینک خراب را ارسال کنید",
-            reply_markup=back_menu()
-        )
-
-    # شارژ پلن
-    elif data.startswith("add_plan"):
-
-        number = data[-1]
-
-        context.user_data.clear()
-        context.user_data["add_plan"] = f"camel_{number}"
-
-        await query.message.reply_text(
-            "لینک ها را ارسال کنید\nهر لینک در یک خط",
-            reply_markup=back_menu()
-        )
-
-    # حذف کامل پلن
-    elif data.startswith("clear_plan"):
-
-        number = data[-1]
-
-        db["plans"][f"camel_{number}"] = []
-
-        save_db(db)
-
-        await query.message.reply_text(
-            f"✅ پلن {number} پاک شد",
-            reply_markup=plans_menu()
-        )
-
 
 # =========================
 # MAIN
@@ -1068,23 +1261,25 @@ def main():
             pattern="buy_"
         )
     )
-    
+
     app.add_handler(
         CallbackQueryHandler(
             plans_callback,
             pattern="^(add_plan|clear_plan|stock|delete_bad|back_admin)"
         )
     )
-    
 
     app.add_handler(
+
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             messages
         )
     )
 
-    app.add_error_handler(error_handler)
+    app.add_error_handler(
+        error_handler
+    )
 
     app.post_init = set_commands
 
@@ -1092,5 +1287,10 @@ def main():
 
     app.run_polling()
 
+# =========================
+# RUN
+# =========================
+
 if __name__ == "__main__":
+
     main()

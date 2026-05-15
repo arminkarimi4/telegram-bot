@@ -3,7 +3,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, "database", "bot.db")
 
-TOKEN = "8720876053:AAEm9TwoD4c8-ndZLAixw7KMBNaPTdF5Eys"
+TOKEN = "8720876053:AAEpwBoaAEQZqtwbsqz98-7oA3tu-12i2W0"
 
 DEFAULT_LANG = "fa"
 

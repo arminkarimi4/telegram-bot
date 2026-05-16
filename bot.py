@@ -1369,10 +1369,15 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))
     app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))
     
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_message_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler))
+    admin_filter = filters.User(user_id=ADMINS)
 
+    app.add_handler(
+        MessageHandler(admin_filter & filters.TEXT & ~filters.COMMAND, admin_message_handler)
+    )
 
+    app.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler)
+    )
 
 
     # messages

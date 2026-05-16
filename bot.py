@@ -1327,7 +1327,6 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))
     app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))
 
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_message_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler))
 
 

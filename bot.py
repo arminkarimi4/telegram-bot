@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -15,7 +15,15 @@ from config import (
     REQUIRED_CHATS
 )
 
-from db import get_connection, init_db
+from db import (
+    get_connection,
+    init_db,
+    add_free_coins,
+    get_free_plan,
+    get_config,
+    remove_config,
+    get_user_by_id
+)
 
 from utils import (
     is_admin,
@@ -29,23 +37,24 @@ from utils import (
 # =========================================
 # منوی اصلی
 # =========================================
+
 def main_menu(user_id=None):
 
     keyboard = [
-        [InlineKeyboardButton("💼 حساب من", callback_data="account")],
-        [InlineKeyboardButton("🎁 دریافت سکه رایگان", callback_data="free_coin")],
-        [InlineKeyboardButton("🐪 دریافت شتر رایگان", callback_data="free_plan")],
-        [InlineKeyboardButton("🐪 خرید شتر اختصاصی", callback_data="buy_plan")],
-        [InlineKeyboardButton("📨 پشتیبانی", callback_data="support")],
+        ["💼 حساب من"],
+        ["🎁 دریافت سکه رایگان"],
+        ["🐪 دریافت شتر رایگان"],
+        ["🐪 خرید شتر اختصاصی"],
+        ["📨 پشتیبانی"],
     ]
 
     if user_id in ADMINS:
-        keyboard.append([
-            InlineKeyboardButton("⚙️ پنل مدیریت", callback_data="admin_panel")
-        ])
+        keyboard.append(["⚙️ پنل مدیریت"])
 
-    return InlineKeyboardMarkup(keyboard)
-
+    return ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True
+    )
 
 # =========================================
 # پیام عضویت اجباری
@@ -593,7 +602,12 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("📊 آمار", callback_data="admin_stats")],
+        [InlineKeyboardButton("🏆 کاربران بر اساس سکه", callback_data="admin_users_by_coins")],
+        [InlineKeyboardButton("➕ افزایش سکه", callback_data="admin_add_coins")],
+        [InlineKeyboardButton("➖ کاهش سکه", callback_data="admin_remove_coins")],
+        [InlineKeyboardButton("🎯 تغییر موجودی کاربر", callback_data="admin_set_coins")],
         [InlineKeyboardButton("➕ افزودن کانفیگ", callback_data="admin_add_config")],
+        [InlineKeyboardButton("🗑 حذف کانفیگ", callback_data="admin_delete_config")],
         [InlineKeyboardButton("📦 موجودی", callback_data="admin_stock")],
         [InlineKeyboardButton("🔍 جستجوی کاربر", callback_data="admin_find_user")],
         [InlineKeyboardButton("🚫 بلاک کاربر", callback_data="admin_block")],
@@ -626,6 +640,54 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 👥 رفرال: {refs}
 📦 موجودی: {stock}
 """
+
+    await query.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")]
+        ])
+    )
+
+#==========================
+#لیست کاربران بر اساس سکه
+#===========================
+
+async def admin_users_by_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT user_id, username, coins, invites, is_blocked
+        FROM users
+        ORDER BY coins DESC, user_id ASC
+        LIMIT 50
+    """)
+
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        await query.message.edit_text(
+            "❌ هیچ کاربری پیدا نشد",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")]
+            ])
+        )
+        return
+
+    text = "🏆 کاربران بر اساس سکه\n\n"
+
+    for i, row in enumerate(rows, start=1):
+        user_id, username, coins, invites, is_blocked = row
+        uname = f"@{username}" if username else "ندارد"
+        text += (
+            f"{i}. {uname}\n"
+            f"🆔 {user_id}\n"
+            f"🪙 {coins} | 👥 {invites} | 🚫 {'بله' if is_blocked else 'خیر'}\n\n"
+        )
 
     await query.message.edit_text(
         text,
@@ -671,6 +733,38 @@ async def admin_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
     )
 
+#===============
+# افزایش سکه
+#===============
+
+async def admin_add_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "admin_add_coins_user"
+    await query.message.edit_text("آیدی کاربر را برای افزایش سکه ارسال کن")
+
+#===============
+#کاهش سکه
+#===============
+
+async def admin_remove_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "admin_remove_coins_user"
+    await query.message.edit_text("آیدی کاربر را برای کاهش سکه ارسال کن")
+
+#===================
+#تغییر موجودی کامل
+#====================
+
+async def admin_set_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "admin_set_coins_user"
+    await query.message.edit_text("آیدی کاربر را برای تنظیم موجودی ارسال کن")
 
 # =========================================
 # افزودن کانفیگ
@@ -693,7 +787,117 @@ plan_id|config
 1|vless://xxxxx
 """
 
-    await query.message.edit_text(text)
+
+    await query.message.edit_text(
+    text,
+    reply_markup=InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ لغو", callback_data="cancel_add_config")]
+    ])
+)
+
+async def cancel_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = None
+
+    await query.message.edit_text(
+        "عملیات لغو شد",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")]
+        ])
+    )
+
+
+#=======================
+# برای دکمه های ریپلای 
+#=======================
+
+async def menu_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    text = update.message.text
+    user_id = update.message.from_user.id
+
+    if text == "💼 حساب من":
+
+        user = get_user(user_id)
+
+        text = f"""
+💼 حساب شما
+
+🆔 آیدی: {user['user_id']}
+🪙 سکه‌ها: {user['coins']}
+👥 دعوت‌ها: {user['invites']}
+"""
+
+    elif text == "🎁 دریافت سکه رایگان":
+
+        bot_username = (await context.bot.get_me()).username
+
+        invite_link = f"https://t.me/{bot_username}?start={user_id}"
+
+        text = f"""
+    🎁 کسب سکه رایگان
+
+    لینک دعوت اختصاصی شما:
+
+    {invite_link}
+
+    ✅ به ازای هر نفر که:
+
+    1️⃣ با لینک شما وارد ربات شود  
+    2️⃣ عضو کانال‌های اجباری شود  
+
+    🪙 یک سکه به شما تعلق می‌گیرد.
+    """
+
+        await update.message.reply_text(text)
+
+
+    elif text == "🐪 دریافت شتر رایگان":
+
+        plan = get_free_plan()
+
+        if not plan:
+            await update.message.reply_text("❌ فعلاً شتر رایگان موجود نیست.")
+            return
+
+        config = get_config(plan)
+
+        if not config:
+            await update.message.reply_text("❌ کانفیگی برای این پلن باقی نمانده.")
+            return
+
+        remove_config(plan, config)
+
+        await update.message.reply_text(
+            f"""
+✅ شتر رایگان دریافت شد
+
+{config}
+"""
+        )
+
+    elif text == "🐪 خرید شتر اختصاصی":
+
+        await update.message.reply_text(
+            "برای خرید شتر اختصاصی از دکمه‌های داخل ربات استفاده کن."
+        )
+
+    elif text == "📨 پشتیبانی":
+
+        await update.message.reply_text(
+            "برای ارتباط با پشتیبانی به آیدی زیر پیام بده:\n@support"
+        )
+
+    elif text == "⚙️ پنل مدیریت":
+
+        if user_id not in ADMINS:
+            return
+
+        await admin_panel(update, context)
+
 
 
 # =========================================
@@ -703,22 +907,9 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if update.message.from_user.id not in ADMINS:
         return
-
-    # forced join
-    if not await is_user_member(
-        context.bot,
-        update.message.from_user.id
-    ):
-
-        await update.message.reply_text(
-            "ابتدا عضو کانال‌ها شو.",
-            reply_markup=build_join_keyboard()
-        )
-
-        return
-
+    
     state = context.user_data.get("state")
-
+    
     if state == "waiting_config":
 
         try:
@@ -756,6 +947,200 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text(
                 "❌ فرمت اشتباه است"
             )
+    
+    
+    # forced join
+    if not await is_user_member(
+        context.bot,
+        update.message.from_user.id
+    ):
+
+        await update.message.reply_text(
+            "ابتدا عضو کانال‌ها شو.",
+            reply_markup=build_join_keyboard()
+        )
+
+        return
+    
+    elif state == "find_user":
+
+        user_id = int(update.message.text)
+
+        user = get_user(user_id)
+
+        if user:
+
+            await update.message.reply_text(
+                f"ID: {user['user_id']}\n"
+                f"Coins: {user['coins']}\n"
+                f"Invites: {user['invites']}\n"
+                f"Blocked: {user['is_blocked']}"
+            )
+
+        else:
+
+            await update.message.reply_text("کاربر پیدا نشد")
+
+        context.user_data["state"] = None
+        
+#============
+#بلااااااک
+#============      
+        
+    elif state == "block_user":
+
+        user_id = int(update.message.text)
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            "UPDATE users SET is_blocked=1 WHERE user_id=?",
+            (user_id,)
+        )
+
+        conn.commit()
+        conn.close()
+
+        await update.message.reply_text("✅ کاربر بلاک شد")
+
+        context.user_data["state"] = None
+     
+#==============
+#آنبلاااااک
+#==============
+
+    elif state == "unblock_user":
+
+        user_id = int(update.message.text)
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            "UPDATE users SET is_blocked=0 WHERE user_id=?",
+            (user_id,)
+        )
+
+        conn.commit()
+        conn.close()
+
+        await update.message.reply_text("✅ کاربر آنبلاک شد")
+
+        context.user_data["state"] = None
+
+    if context.user_data.get("state") == "find_user":
+
+        try:
+            uid = int(update.message.text)
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+            return
+
+        user = get_user_by_id(uid)
+
+        if not user:
+
+            await update.message.reply_text("❌ کاربر پیدا نشد")
+            return
+
+        text = f"""
+    👤 اطلاعات کاربر
+
+    🆔 آیدی: {user[0]}
+    👤 یوزرنیم: @{user[1]}
+
+    🪙 سکه‌ها: {user[2]}
+    👥 تعداد دعوت: {user[3]}
+
+    🚫 بلاک: {"بله" if user[4] else "خیر"}
+    """
+
+        await update.message.reply_text(text)
+
+        context.user_data["state"] = None
+
+        return
+
+#======================
+#افزایش سکهه
+#=======================
+
+    elif state == "admin_add_coins_user":
+        try:
+            context.user_data["target_user_id"] = int(update.message.text)
+            context.user_data["state"] = "admin_add_coins_amount"
+            await update.message.reply_text("مقدار سکه‌ای که می‌خواهی اضافه شود را بفرست")
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+  
+#=================
+#کاهش سکهههه
+#=================
+
+    elif state == "admin_remove_coins_user":
+        try:
+            context.user_data["target_user_id"] = int(update.message.text)
+            context.user_data["state"] = "admin_remove_coins_amount"
+            await update.message.reply_text("مقدار سکه‌ای که می‌خواهی کم شود را بفرست")
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+
+    elif state == "admin_remove_coins_amount":
+        try:
+            amount = int(update.message.text)
+            target_user_id = context.user_data.get("target_user_id")
+
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE users
+                SET coins = CASE
+                    WHEN coins - ? < 0 THEN 0
+                    ELSE coins - ?
+                END
+                WHERE user_id = ?
+            """, (amount, amount, target_user_id))
+
+            conn.commit()
+            conn.close()
+
+            await update.message.reply_text("✅ سکه با موفقیت کم شد")
+        except:
+            await update.message.reply_text("❌ مقدار نامعتبر است")
+ 
+        context.user_data["state"] = None
+        context.user_data.pop("target_user_id", None)
+
+#==================
+#تغییر موجودی کامل
+#==================
+
+    elif state == "admin_set_coins_user":
+        try:
+            context.user_data["target_user_id"] = int(update.message.text)
+            context.user_data["state"] = "admin_set_coins_amount"
+            await update.message.reply_text("عدد نهایی موجودی را بفرست")
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+
+    elif state == "admin_set_coins_amount":
+        try:
+            amount = int(update.message.text)
+            target_user_id = context.user_data.get("target_user_id")
+
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute("UPDATE users SET coins = ? WHERE user_id = ?", (amount, target_user_id))
+            conn.commit()
+            conn.close()
+
+            await update.message.reply_text("✅ موجودی کاربر با موفقیت تغییر کرد")
+        except:
+            await update.message.reply_text("❌ مقدار نامعتبر است")
+
+        context.user_data["state"] = None
+        context.user_data.pop("target_user_id", None)
 
 
 # =========================================
@@ -817,6 +1202,35 @@ async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")]
         ])
     )
+
+async def admin_find_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "find_user"
+
+    await query.message.edit_text("آیدی کاربر را ارسال کن")
+
+
+async def admin_block(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "block_user"
+
+    await query.message.edit_text("آیدی کاربر برای بلاک:")
+
+
+async def admin_unblock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "unblock_user"
+
+    await query.message.edit_text("آیدی کاربر برای آنبلاک:")
 
 
 # =========================================
@@ -894,13 +1308,29 @@ def main():
 
     app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
     app.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
+    app.add_handler(CallbackQueryHandler(admin_users_by_coins, pattern="^admin_users_by_coins$"))
     app.add_handler(CallbackQueryHandler(admin_stock, pattern="^admin_stock$"))
     app.add_handler(CallbackQueryHandler(admin_add_config, pattern="^admin_add_config$"))
     app.add_handler(CallbackQueryHandler(admin_reset, pattern="^admin_reset$"))
+    app.add_handler(CallbackQueryHandler(admin_users_by_coins, pattern="^admin_users_by_coins$"))
+    app.add_handler(CallbackQueryHandler(admin_add_coins, pattern="^admin_add_coins$"))
+    app.add_handler(CallbackQueryHandler(admin_remove_coins, pattern="^admin_remove_coins$"))
+    app.add_handler(CallbackQueryHandler(admin_set_coins, pattern="^admin_set_coins$"))
+
 
     app.add_handler(CallbackQueryHandler(buy_plan_callback, pattern="^buy_plan$"))
     app.add_handler(CallbackQueryHandler(support_callback, pattern="^support$"))
     app.add_handler(CallbackQueryHandler(back_main, pattern="^back_main$"))
+    
+    app.add_handler(CallbackQueryHandler(admin_find_user, pattern="^admin_find_user$"))
+    app.add_handler(CallbackQueryHandler(admin_block, pattern="^admin_block$"))
+    app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))
+    app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_message_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler))
+
+
 
     # messages
     app.add_handler(MessageHandler(

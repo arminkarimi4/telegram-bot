@@ -103,3 +103,118 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+def user_exists(user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT user_id FROM users WHERE user_id=?",
+        (user_id,)
+    )
+
+    user = cur.fetchone()
+
+    conn.close()
+
+    return bool(user)
+
+def add_free_coins(user_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    coins = 1
+
+    cur.execute(
+        "UPDATE users SET coins = coins + ? WHERE user_id=?",
+        (coins, user_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return coins
+
+
+def get_free_plan():
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id FROM plans WHERE price=0 LIMIT 1"
+    )
+
+    plan = cur.fetchone()
+
+    conn.close()
+
+    if plan:
+        return plan[0]
+
+    return None
+
+
+def get_config(plan_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT config FROM inventory
+    WHERE plan_id=? AND is_used=0
+    LIMIT 1
+    """, (plan_id,))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    if row:
+        return row[0]
+
+    return None
+
+
+def remove_config(plan_id, config):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE inventory
+    SET is_used=1
+    WHERE plan_id=? AND config=?
+    """, (plan_id, config))
+
+    conn.commit()
+    conn.close()
+
+#==============================
+#دیدن موجودی کاربر برای ادمین
+#================================
+
+
+def get_user_by_id(user_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT user_id, username, coins, invites, is_blocked FROM users WHERE user_id=?",
+        (user_id,)
+    )
+
+    user = cur.fetchone()
+
+    conn.close()
+
+    return user
+
+def update_user_coins(user_id, amount):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET coins = MAX(coins + ?, 0) WHERE user_id = ?", (amount, user_id))
+    conn.commit()
+    conn.close()

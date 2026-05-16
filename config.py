@@ -10,7 +10,7 @@ DEFAULT_LANG = "fa"
 
 ADMINS = [
     400900388,
-    1483857146
+    1483857146,
 ]
 
 SUPPORT_ID = "@arminkarimi4"

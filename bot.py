@@ -200,7 +200,7 @@ async def register_user(
 
     conn.close()
 
-
+#=========================================
 # =========================================
 # گرفتن کاربر
 # =========================================
@@ -574,53 +574,114 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================================
+# باز کردن پنل ادمین از دکمه ریپلای
+# =========================================
+async def open_admin_panel_from_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    user_id = message.from_user.id
+
+    # anti spam
+    if is_spam(context, user_id):
+        await message.reply_text("⏳ کمی صبر کن.")
+        return
+
+    # forced join
+    if not await is_user_member(context.bot, user_id):
+        await join_required_message(update, context)
+        return
+
+    if user_id not in ADMINS:
+        return
+
+    keyboard = [
+        [
+            InlineKeyboardButton("📊 آمار", callback_data="admin_stats"),
+            InlineKeyboardButton("📦 موجودی", callback_data="admin_stock")
+        ],
+        [
+            InlineKeyboardButton("➕ افزودن کانفیگ", callback_data="admin_add_config"),
+            InlineKeyboardButton("🔄 ریست", callback_data="admin_reset")
+        ],
+        [
+            InlineKeyboardButton("👥 کاربران", callback_data="admin_users_by_coins"),
+            InlineKeyboardButton("🔍 جستجو", callback_data="admin_find_user")
+        ],
+        [
+            InlineKeyboardButton("➕ افزایش سکه", callback_data="admin_add_coins"),
+            InlineKeyboardButton("➖ کاهش سکه", callback_data="admin_remove_coins")
+        ],
+        [
+            InlineKeyboardButton("🎯 تنظیم سکه", callback_data="admin_set_coins"),
+            InlineKeyboardButton("⛔ بلاک", callback_data="admin_block")
+        ],
+        [
+            InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock"),
+            InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")
+        ]
+    ]
+
+    await message.reply_text(
+        "⚙️ پنل مدیریت",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# =========================================
 # پنل ادمین
 # =========================================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
 
+    if not query:
+        return
+
+    # anti spam
     if is_spam(context, query.from_user.id):
-
-        await query.answer(
-            "⏳ کمی صبر کن.",
-            show_alert=True
-        )
-
+        await query.answer("⏳ کمی صبر کن.", show_alert=True)
         return
 
+    # forced join
     if not await is_user_member(context.bot, query.from_user.id):
-
         await join_required_message(update, context)
-
         return
-
-    await query.answer()
 
     if query.from_user.id not in ADMINS:
         return
 
+    await query.answer()
+
     keyboard = [
-        [InlineKeyboardButton("📊 آمار", callback_data="admin_stats")],
-        [InlineKeyboardButton("🏆 کاربران بر اساس سکه", callback_data="admin_users_by_coins")],
-        [InlineKeyboardButton("➕ افزایش سکه", callback_data="admin_add_coins")],
-        [InlineKeyboardButton("➖ کاهش سکه", callback_data="admin_remove_coins")],
-        [InlineKeyboardButton("🎯 تغییر موجودی کاربر", callback_data="admin_set_coins")],
-        [InlineKeyboardButton("➕ افزودن کانفیگ", callback_data="admin_add_config")],
-        [InlineKeyboardButton("🗑 حذف کانفیگ", callback_data="admin_delete_config")],
-        [InlineKeyboardButton("📦 موجودی", callback_data="admin_stock")],
-        [InlineKeyboardButton("🔍 جستجوی کاربر", callback_data="admin_find_user")],
-        [InlineKeyboardButton("🚫 بلاک کاربر", callback_data="admin_block")],
-        [InlineKeyboardButton("✅ آنبلاک کاربر", callback_data="admin_unblock")],
-        [InlineKeyboardButton("🗑 ریست ربات", callback_data="admin_reset")],
-        [InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")]
+        [
+            InlineKeyboardButton("📊 آمار", callback_data="admin_stats"),
+            InlineKeyboardButton("📦 موجودی", callback_data="admin_stock")
+        ],
+        [
+            InlineKeyboardButton("➕ افزودن کانفیگ", callback_data="admin_add_config"),
+            InlineKeyboardButton("🔄 ریست", callback_data="admin_reset")
+        ],
+        [
+            InlineKeyboardButton("👥 کاربران", callback_data="admin_users_by_coins"),
+            InlineKeyboardButton("🔍 جستجو", callback_data="admin_find_user")
+        ],
+        [
+            InlineKeyboardButton("➕ افزایش سکه", callback_data="admin_add_coins"),
+            InlineKeyboardButton("➖ کاهش سکه", callback_data="admin_remove_coins")
+        ],
+        [
+            InlineKeyboardButton("🎯 تنظیم سکه", callback_data="admin_set_coins"),
+            InlineKeyboardButton("⛔ بلاک", callback_data="admin_block")
+        ],
+        [
+            InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock"),
+            InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")
+        ]
     ]
 
     await query.message.edit_text(
         "⚙️ پنل مدیریت",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
 
 # =========================================
 # آمار
@@ -815,89 +876,71 @@ async def cancel_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #=======================
 
 async def menu_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     text = update.message.text
     user_id = update.message.from_user.id
 
     if text == "💼 حساب من":
-
         user = get_user(user_id)
+        if not user:
+            await update.message.reply_text("❌ کاربر یافت نشد.")
+            return
 
-        text = f"""
+        msg = f"""
 💼 حساب شما
 
 🆔 آیدی: {user['user_id']}
 🪙 سکه‌ها: {user['coins']}
 👥 دعوت‌ها: {user['invites']}
 """
+        await update.message.reply_text(msg)
 
     elif text == "🎁 دریافت سکه رایگان":
-
         bot_username = (await context.bot.get_me()).username
-
         invite_link = f"https://t.me/{bot_username}?start={user_id}"
 
-        text = f"""
-    🎁 کسب سکه رایگان
+        msg = f"""
+🎁 کسب سکه رایگان
 
-    لینک دعوت اختصاصی شما:
+لینک دعوت اختصاصی شما:
 
-    {invite_link}
+{invite_link}
 
-    ✅ به ازای هر نفر که:
-
-    1️⃣ با لینک شما وارد ربات شود  
-    2️⃣ عضو کانال‌های اجباری شود  
-
-    🪙 یک سکه به شما تعلق می‌گیرد.
-    """
-
-        await update.message.reply_text(text)
-
+✅ به ازای هر نفر که:
+1️⃣ با لینک شما وارد ربات شود  
+2️⃣ عضو کانال‌های اجباری شود  
+🪙 یک سکه به شما تعلق می‌گیرد.
+"""
+        await update.message.reply_text(msg)
 
     elif text == "🐪 دریافت شتر رایگان":
-
-        plan = get_free_plan()
-
-        if not plan:
-            await update.message.reply_text("❌ فعلاً شتر رایگان موجود نیست.")
-            return
-
-        config = get_config(plan)
-
-        if not config:
-            await update.message.reply_text("❌ کانفیگی برای این پلن باقی نمانده.")
-            return
-
-        remove_config(plan, config)
-
+        keyboard = [
+            [InlineKeyboardButton("(استخونی🐪) 15MB | 1🪙", callback_data="plan_1")],
+            [InlineKeyboardButton("(نی قلیون🐪) 50MB | 3🪙", callback_data="plan_2")],
+            [InlineKeyboardButton("(فیت🐪) 80MB | 5🪙", callback_data="plan_3")],
+            [InlineKeyboardButton("(توپر🐪) 200MB | 10🪙", callback_data="plan_4")],
+            [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="back_main")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+    
         await update.message.reply_text(
-            f"""
-✅ شتر رایگان دریافت شد
+            "یکی از پلن‌های زیر را انتخاب کنید:",
+            reply_markup=reply_markup
+        )    
 
-{config}
-"""
-        )
 
     elif text == "🐪 خرید شتر اختصاصی":
-
         await update.message.reply_text(
-            "برای خرید شتر اختصاصی از دکمه‌های داخل ربات استفاده کن."
+            "برای خرید شتر اختصاصی، با آیدی زیر ارتباط بگیر:\n"
+            "@support"
         )
 
     elif text == "📨 پشتیبانی":
-
         await update.message.reply_text(
             "برای ارتباط با پشتیبانی به آیدی زیر پیام بده:\n@support"
         )
 
     elif text == "⚙️ پنل مدیریت":
-
-        if user_id not in ADMINS:
-            return
-
-        await admin_panel(update, context)
-
+        await open_admin_panel_from_message(update, context)
 
 
 # =========================================

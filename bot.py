@@ -870,61 +870,6 @@ async def cancel_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
     )
 
-#============================
-# پردازش پیام افزودن کانفیگ
-#=============================
-
-
-async def handle_add_config_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if not context.user_data.get("add_config"):
-        return
-
-    user_id = update.message.from_user.id
-
-    if user_id not in ADMINS:
-        return
-
-    text = update.message.text.strip()
-
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
-
-    if len(lines) < 2:
-        await update.message.reply_text(
-            "❌ فرمت اشتباه است.\n\nنمونه:\n\n1\nconfig1\nconfig2"
-        )
-        return
-
-    try:
-        plan_id = int(lines[0])
-    except:
-        await update.message.reply_text("❌ plan_id باید عدد باشد.")
-        return
-
-    configs = lines[1:]
-
-    from db import get_conn
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    count = 0
-
-    for cfg in configs:
-        cur.execute(
-            "INSERT INTO inventory (plan_id, config, is_used) VALUES (?, ?, 0)",
-            (plan_id, cfg)
-        )
-        count += 1
-
-    conn.commit()
-    conn.close()
-
-    context.user_data.pop("add_config", None)
-
-    await update.message.reply_text(
-        f"✅ {count} کانفیگ با موفقیت اضافه شد."
-    )
 
 #=======================
 # برای دکمه های ریپلای 
@@ -1423,9 +1368,10 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_block, pattern="^admin_block$"))
     app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))
     app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))
-
+    
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_message_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_config_message))
+
 
 
 

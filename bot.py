@@ -931,12 +931,12 @@ async def menu_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "🐪 خرید شتر اختصاصی":
         await update.message.reply_text(
             "برای خرید شتر اختصاصی، با آیدی زیر ارتباط بگیر:\n"
-            "@support"
+            "@arminkarimi4"
         )
 
     elif text == "📨 پشتیبانی":
         await update.message.reply_text(
-            "برای ارتباط با پشتیبانی به آیدی زیر پیام بده:\n@support"
+            "برای ارتباط با پشتیبانی به آیدی زیر پیام بده:\n@arminkarimi4"
         )
 
     elif text == "⚙️ پنل مدیریت":

@@ -1308,7 +1308,6 @@ def main():
 
     app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
     app.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
-    app.add_handler(CallbackQueryHandler(admin_users_by_coins, pattern="^admin_users_by_coins$"))
     app.add_handler(CallbackQueryHandler(admin_stock, pattern="^admin_stock$"))
     app.add_handler(CallbackQueryHandler(admin_add_config, pattern="^admin_add_config$"))
     app.add_handler(CallbackQueryHandler(admin_reset, pattern="^admin_reset$"))
@@ -1340,6 +1339,7 @@ def main():
     print("BOT STARTED")
 
     app.run_polling()
+
 
 
 if __name__ == "__main__":

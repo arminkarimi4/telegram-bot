@@ -949,124 +949,91 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     state = context.user_data.get("state")
 
-    # اگر ادمین در حالت خاصی نیست
+    # اگر ادمین در حالت خاصی نیست → پیام باید به منوی اصلی برود
     if not state:
-        return
+        return await menu_message_handler(update, context)
 
-    
-    state = context.user_data.get("state")
-    
+
+    # =========================
+    #  افزودن کانفیگ به انبار
+    # =========================
     if state == "waiting_config":
-
         try:
-
             data = update.message.text.split("|", 1)
-
             plan_id = int(data[0])
             config = data[1]
 
             conn = get_connection()
             cur = conn.cursor()
-
             cur.execute("""
-            INSERT INTO inventory(
-                plan_id,
-                config
-            )
-            VALUES(?,?)
-            """, (
-                plan_id,
-                config
-            ))
-
+                INSERT INTO inventory(plan_id, config)
+                VALUES(?,?)
+            """, (plan_id, config))
             conn.commit()
             conn.close()
 
             context.user_data["state"] = None
-
-            await update.message.reply_text(
-                "✅ کانفیگ اضافه شد"
-            )
+            await update.message.reply_text("✅ کانفیگ اضافه شد")
 
         except:
+            await update.message.reply_text("❌ فرمت اشتباه است")
 
-            await update.message.reply_text(
-                "❌ فرمت اشتباه است"
-            )
-    
-    
-    
+
+    # =========================
+    #  پیدا کردن کاربر
+    # =========================
     elif state == "find_user":
-
         user_id = int(update.message.text)
-
         user = get_user(user_id)
 
         if user:
-
             await update.message.reply_text(
                 f"ID: {user['user_id']}\n"
                 f"Coins: {user['coins']}\n"
                 f"Invites: {user['invites']}\n"
                 f"Blocked: {user['is_blocked']}"
             )
-
         else:
-
             await update.message.reply_text("کاربر پیدا نشد")
 
         context.user_data["state"] = None
-        
-#============
-#بلااااااک
-#============      
-        
-    elif state == "block_user":
 
+
+    # =========================
+    #  بلاک کاربر
+    # =========================
+    elif state == "block_user":
         user_id = int(update.message.text)
 
         conn = get_connection()
         cur = conn.cursor()
-
-        cur.execute(
-            "UPDATE users SET is_blocked=1 WHERE user_id=?",
-            (user_id,)
-        )
-
+        cur.execute("UPDATE users SET is_blocked=1 WHERE user_id=?", (user_id,))
         conn.commit()
         conn.close()
 
         await update.message.reply_text("✅ کاربر بلاک شد")
-
         context.user_data["state"] = None
-     
-#==============
-#آنبلاااااک
-#==============
 
+
+    # =========================
+    #  آنبلاک
+    # =========================
     elif state == "unblock_user":
-
         user_id = int(update.message.text)
 
         conn = get_connection()
         cur = conn.cursor()
-
-        cur.execute(
-            "UPDATE users SET is_blocked=0 WHERE user_id=?",
-            (user_id,)
-        )
-
+        cur.execute("UPDATE users SET is_blocked=0 WHERE user_id=?", (user_id,))
         conn.commit()
         conn.close()
 
         await update.message.reply_text("✅ کاربر آنبلاک شد")
-
         context.user_data["state"] = None
-        
-#======================
-#افزایش سکهه
-#=======================
 
+
+    # =========================
+    #  اضافه‌کردن سکه – مرحله ۱
+    # =========================
     elif state == "admin_add_coins_user":
         try:
             context.user_data["target_user_id"] = int(update.message.text)
@@ -1074,8 +1041,11 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("مقدار سکه‌ای که می‌خواهی اضافه شود را بفرست")
         except:
             await update.message.reply_text("❌ آیدی نامعتبر است")
-            
-            
+
+
+    # =========================
+    #  اضافه‌کردن سکه – مرحله ۲
+    # =========================
     elif state == "admin_add_coins_amount":
         try:
             amount = int(update.message.text)
@@ -1083,28 +1053,24 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
             conn = get_connection()
             cur = conn.cursor()
-
             cur.execute(
                 "UPDATE users SET coins = coins + ? WHERE user_id=?",
                 (amount, target_user_id)
             )
-
             conn.commit()
             conn.close()
 
             await update.message.reply_text("✅ سکه اضافه شد")
-
         except:
             await update.message.reply_text("❌ مقدار نامعتبر است")
 
         context.user_data["state"] = None
         context.user_data.pop("target_user_id", None)
-        
-  
-#=================
-#کاهش سکهههه
-#=================
 
+
+    # =========================
+    #  کاهش سکه – مرحله ۱
+    # =========================
     elif state == "admin_remove_coins_user":
         try:
             context.user_data["target_user_id"] = int(update.message.text)
@@ -1113,6 +1079,9 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         except:
             await update.message.reply_text("❌ آیدی نامعتبر است")
 
+    # =========================
+    #  کاهش سکه – مرحله ۲
+    # =========================
     elif state == "admin_remove_coins_amount":
         try:
             amount = int(update.message.text)
@@ -1128,16 +1097,49 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 END
                 WHERE user_id = ?
             """, (amount, amount, target_user_id))
-
             conn.commit()
             conn.close()
 
             await update.message.reply_text("✅ سکه با موفقیت کم شد")
         except:
             await update.message.reply_text("❌ مقدار نامعتبر است")
- 
+
         context.user_data["state"] = None
         context.user_data.pop("target_user_id", None)
+
+
+    # =========================
+    #  تنظیم سکه – مرحله ۱
+    # =========================
+    elif state == "admin_set_coins_user":
+        try:
+            context.user_data["target_user_id"] = int(update.message.text)
+            context.user_data["state"] = "admin_set_coins_amount"
+            await update.message.reply_text("عدد نهایی موجودی را بفرست")
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+
+    # =========================
+    #  تنظیم سکه – مرحله ۲
+    # =========================
+    elif state == "admin_set_coins_amount":
+        try:
+            amount = int(update.message.text)
+            target_user_id = context.user_data.get("target_user_id")
+
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute("UPDATE users SET coins = ? WHERE user_id = ?", (amount, target_user_id))
+            conn.commit()
+            conn.close()
+
+            await update.message.reply_text("✅ موجودی کاربر با موفقیت تغییر کرد")
+        except:
+            await update.message.reply_text("❌ مقدار نامعتبر است")
+
+        context.user_data["state"] = None
+        context.user_data.pop("target_user_id", None)
+
 
 #==================
 #تغییر موجودی کامل
@@ -1296,16 +1298,20 @@ async def support_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # بازگشت
 # =========================================
 async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     query = update.callback_query
-
     await query.answer()
 
-    await query.message.edit_text(
-        "🏠 منوی اصلی",
+    # حذف پیام قبلی (inline)
+    try:
+        await query.message.delete()
+    except:
+        pass
+
+    await context.bot.send_message(
+        chat_id=query.from_user.id,
+        text="🏠 منوی اصلی",
         reply_markup=main_menu(query.from_user.id)
     )
-
 
 # =========================================
 # MAIN
@@ -1357,13 +1363,13 @@ def main():
     admin_filter = filters.User(user_id=ADMINS)
 
     app.add_handler(
-        MessageHandler(admin_filter & filters.TEXT & ~filters.COMMAND, admin_message_handler),
-        block=False
+        MessageHandler(admin_filter & filters.TEXT & ~filters.COMMAND, admin_message_handler)
     )
 
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler)
     )
+
 
 
     print("BOT STARTED")

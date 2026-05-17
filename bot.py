@@ -1172,38 +1172,6 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["state"] = None
         context.user_data.pop("target_user_id", None)
 
-
-#==================
-#تغییر موجودی کامل
-#==================
-
-    elif state == "admin_set_coins_user":
-        try:
-            context.user_data["target_user_id"] = int(update.message.text)
-            context.user_data["state"] = "admin_set_coins_amount"
-            await update.message.reply_text("عدد نهایی موجودی را بفرست")
-        except:
-            await update.message.reply_text("❌ آیدی نامعتبر است")
-
-    elif state == "admin_set_coins_amount":
-        try:
-            amount = int(update.message.text)
-            target_user_id = context.user_data.get("target_user_id")
-
-            conn = get_connection()
-            cur = conn.cursor()
-            cur.execute("UPDATE users SET coins = ? WHERE user_id = ?", (amount, target_user_id))
-            conn.commit()
-            conn.close()
-
-            await update.message.reply_text("✅ موجودی کاربر با موفقیت تغییر کرد")
-        except:
-            await update.message.reply_text("❌ مقدار نامعتبر است")
-
-        context.user_data["state"] = None
-        context.user_data.pop("target_user_id", None)
-
-
 # =========================================
 # ریست کامل
 # =========================================

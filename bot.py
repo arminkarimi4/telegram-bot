@@ -1034,13 +1034,24 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # =========================
     #  اضافه‌کردن سکه – مرحله ۱
     # =========================
+    
     elif state == "admin_add_coins_user":
         try:
             context.user_data["target_user_id"] = int(update.message.text)
             context.user_data["state"] = "admin_add_coins_amount"
-            await update.message.reply_text("مقدار سکه‌ای که می‌خواهی اضافه شود را بفرست")
+
+            keyboard = [
+                [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
+            ]
+
+            await update.message.reply_text(
+                "مقدار سکه‌ای که می‌خواهی اضافه شود را بفرست",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         except:
             await update.message.reply_text("❌ آیدی نامعتبر است")
+
 
 
     # =========================
@@ -1075,9 +1086,19 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         try:
             context.user_data["target_user_id"] = int(update.message.text)
             context.user_data["state"] = "admin_remove_coins_amount"
-            await update.message.reply_text("مقدار سکه‌ای که می‌خواهی کم شود را بفرست")
+
+            keyboard = [
+                [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
+            ]
+
+            await update.message.reply_text(
+                "مقدار سکه‌ای که می‌خواهی کم شود را بفرست",
+                 reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         except:
             await update.message.reply_text("❌ آیدی نامعتبر است")
+
 
     # =========================
     #  کاهش سکه – مرحله ۲
@@ -1111,13 +1132,24 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # =========================
     #  تنظیم سکه – مرحله ۱
     # =========================
+    
     elif state == "admin_set_coins_user":
         try:
             context.user_data["target_user_id"] = int(update.message.text)
             context.user_data["state"] = "admin_set_coins_amount"
-            await update.message.reply_text("عدد نهایی موجودی را بفرست")
+
+            keyboard = [
+                [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
+            ]
+
+            await update.message.reply_text(
+                "عدد نهایی موجودی را بفرست",
+                 reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         except:
             await update.message.reply_text("❌ آیدی نامعتبر است")
+
 
     # =========================
     #  تنظیم سکه – مرحله ۲

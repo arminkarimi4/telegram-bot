@@ -1239,7 +1239,15 @@ async def admin_find_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["state"] = "find_user"
 
-    await query.message.edit_text("آیدی کاربر را ارسال کن")
+    keyboard = [
+        [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
+    ]
+
+    await query.message.edit_text(
+        "🔍 آیدی کاربر را بفرست:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 
 
 async def admin_block(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1249,7 +1257,14 @@ async def admin_block(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["state"] = "block_user"
 
-    await query.message.edit_text("آیدی کاربر برای بلاک:")
+    keyboard = [
+        [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
+    ]
+
+    await query.message.edit_text(
+        "🚫 آیدی کاربر برای بلاک را بفرست:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 
 async def admin_unblock(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1259,8 +1274,14 @@ async def admin_unblock(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["state"] = "unblock_user"
 
-    await query.message.edit_text("آیدی کاربر برای آنبلاک:")
+    keyboard = [
+        [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
+    ]
 
+    await query.message.edit_text(
+        "✅ آیدی کاربر برای آنبلاک را بفرست:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 # =========================================
 # پشتیبانی

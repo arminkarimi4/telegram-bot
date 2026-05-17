@@ -546,6 +546,8 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     plan_id = int(query.data.split("_")[1])
+    print("PLAN CLICKED:", plan_id)
+   
 
     success, result = claim_plan(
         query.from_user.id,

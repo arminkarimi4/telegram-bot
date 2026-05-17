@@ -1071,40 +1071,7 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("✅ کاربر آنبلاک شد")
 
         context.user_data["state"] = None
-
-    if context.user_data.get("state") == "find_user":
-
-        try:
-            uid = int(update.message.text)
-        except:
-            await update.message.reply_text("❌ آیدی نامعتبر است")
-            return
-
-        user = get_user_by_id(uid)
-
-        if not user:
-
-            await update.message.reply_text("❌ کاربر پیدا نشد")
-            return
-
-        text = f"""
-    👤 اطلاعات کاربر
-
-    🆔 آیدی: {user[0]}
-    👤 یوزرنیم: @{user[1]}
-
-    🪙 سکه‌ها: {user[2]}
-    👥 تعداد دعوت: {user[3]}
-
-    🚫 بلاک: {"بله" if user[4] else "خیر"}
-    """
-
-        await update.message.reply_text(text)
-
-        context.user_data["state"] = None
-
-        return
-
+        
 #======================
 #افزایش سکهه
 #=======================
@@ -1378,13 +1345,6 @@ def main():
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler)
     )
-
-
-    # messages
-    app.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        admin_message_handler
-    ))
 
     print("BOT STARTED")
 

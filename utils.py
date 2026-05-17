@@ -48,7 +48,7 @@ def build_join_keyboard():
     keyboard.append([
         InlineKeyboardButton(
             "✅ بررسی عضویت",
-            callback_data="check_join"
+            callback_data="check_membership"
         )
     ])
 

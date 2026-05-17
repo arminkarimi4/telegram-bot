@@ -992,18 +992,6 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
             )
     
     
-    # forced join
-    if not await is_user_member(
-        context.bot,
-        update.message.from_user.id
-    ):
-
-        await update.message.reply_text(
-            "ابتدا عضو کانال‌ها شو.",
-            reply_markup=build_join_keyboard()
-        )
-
-        return
     
     elif state == "find_user":
 
@@ -1083,6 +1071,32 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("مقدار سکه‌ای که می‌خواهی اضافه شود را بفرست")
         except:
             await update.message.reply_text("❌ آیدی نامعتبر است")
+            
+            
+    elif state == "admin_add_coins_amount":
+        try:
+            amount = int(update.message.text)
+            target_user_id = context.user_data.get("target_user_id")
+
+            conn = get_connection()
+            cur = conn.cursor()
+
+            cur.execute(
+                "UPDATE users SET coins = coins + ? WHERE user_id=?",
+                (amount, target_user_id)
+            )
+
+            conn.commit()
+            conn.close()
+
+            await update.message.reply_text("✅ سکه اضافه شد")
+
+        except:
+            await update.message.reply_text("❌ مقدار نامعتبر است")
+
+        context.user_data["state"] = None
+        context.user_data.pop("target_user_id", None)
+        
   
 #=================
 #کاهش سکهههه

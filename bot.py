@@ -7,6 +7,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+import sqlite3
 
 from config import (
     TOKEN,
@@ -674,13 +675,58 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock"),
             InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")
+        ],
+        [
+            InlineKeyboardButton("🗑 حذف کانفیگ", callback_data="admin_delete_config")
         ]
+        
     ]
 
     await query.message.edit_text(
         "⚙️ پنل مدیریت",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+
+# =========================================
+# مدیریت حذف کانفیگ
+# =========================================
+async def admin_delete_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    keyboard = []
+
+    for plan_id in range(1, 5):
+        cur.execute("SELECT COUNT(*) FROM inventory WHERE plan_id=?", (plan_id,))
+        count = cur.fetchone()[0]
+
+        keyboard.append([
+            InlineKeyboardButton(
+                f"🗑 حذف پلن {plan_id} ({count} عدد)",
+                callback_data=f"confirm_delete_plan_{plan_id}"
+            )
+        ])
+
+    conn.close()
+
+    keyboard.append([
+        InlineKeyboardButton("🧹 حذف تکی (با ارسال متن)", callback_data="delete_single_config_start")
+    ])
+    keyboard.append([
+        InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")
+    ])
+
+    await query.message.edit_text(
+        "متن کامل کانفیگ را ارسال کن:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ انصراف", callback_data="admin_delete_config")]
+        ])
+    )
+
 
 # =========================================
 # آمار
@@ -957,26 +1003,52 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
     # =========================
     #  افزودن کانفیگ به انبار
     # =========================
-    if state == "waiting_config":
+    elif state == "waiting_config":
+
+        lines = update.message.text.strip().split("\n")
+
+        if len(lines) < 2:
+            await update.message.reply_text("❌ فرمت اشتباه است.")
+            return
+
         try:
-            data = update.message.text.split("|", 1)
-            plan_id = int(data[0])
-            config = data[1]
-
-            conn = get_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO inventory(plan_id, config)
-                VALUES(?,?)
-            """, (plan_id, config))
-            conn.commit()
-            conn.close()
-
-            context.user_data["state"] = None
-            await update.message.reply_text("✅ کانفیگ اضافه شد")
-
+            plan_id = int(lines[0].strip())
         except:
-            await update.message.reply_text("❌ فرمت اشتباه است")
+            await update.message.reply_text("❌ پلن آیدی باید عدد باشد.")
+            return
+
+        configs = lines[1:]
+
+        conn = sqlite3.connect("bot.db")
+        cur = conn.cursor()
+
+        added = 0
+
+        for config in configs:
+
+            config = config.strip()
+
+            if not config:
+                continue
+
+            if not config.startswith(("vless://", "vmess://", "trojan://", "ss://")):
+                continue
+
+            cur.execute("""
+            INSERT INTO inventory (plan_id, config, is_used)
+            VALUES (?, ?, 0)
+            """, (plan_id, config))
+
+            added += 1
+
+        conn.commit()
+        conn.close()
+
+        context.user_data["state"] = None
+
+        await update.message.reply_text(
+            f"✅ {added} کانفیگ برای پلن {plan_id} اضافه شد."
+        )
 
 
     # =========================
@@ -1171,6 +1243,70 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
         context.user_data["state"] = None
         context.user_data.pop("target_user_id", None)
+    
+    
+    
+  #==========================
+  # حذف تکی کانفینگ
+  #==========================
+  
+    elif state == "waiting_for_delete_config":
+        config_text = update.message.text
+
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM inventory WHERE config=?", (config_text,))
+        deleted = cur.rowcount
+        conn.commit()
+        conn.close()
+
+        if deleted > 0:
+            await update.message.reply_text("✅ کانفیگ مورد نظر از دیتابیس حذف شد.")
+        else:
+            await update.message.reply_text("❌ چنین کانفیگی در انبار یافت نشد.")
+        
+        context.user_data["state"] = None # پاک کردن وضعیت ادمین
+    
+#===================================
+#تایید دو مرحبه برای حذف کانفینگ
+#====================================
+async def confirm_delete_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    plan_id = int(query.data.split("_")[-1])
+
+    keyboard = [
+        [InlineKeyboardButton("✅ بله، حذف کن", callback_data=f"delete_plan_final_{plan_id}")],
+        [InlineKeyboardButton("❌ لغو", callback_data="admin_delete_config")]
+    ]
+
+    await query.message.edit_text(
+        f"⚠️ مطمئنی می‌خواهی تمام کانفیگ‌های پلن {plan_id} را حذف کنی؟\nاین عملیات قابل بازگشت نیست!",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def delete_plan_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    plan_id = int(query.data.split("_")[-1])
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM inventory WHERE plan_id=?", (plan_id,))
+    deleted_count = cur.rowcount
+    conn.commit()
+    conn.close()
+
+    await query.message.edit_text(
+        f"✅ تعداد {deleted_count} کانفیگ از پلن {plan_id} حذف شد.",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🔙 بازگشت به مدیریت حذف", callback_data="admin_delete_config")]]
+        )
+    )
+
 
 # =========================================
 # ریست کامل
@@ -1378,7 +1514,13 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_find_user, pattern="^admin_find_user$"))
     app.add_handler(CallbackQueryHandler(admin_block, pattern="^admin_block$"))
     app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))
-    app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))
+    app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))   
+    
+    #مدیریت حذف کانفینگ
+    app.add_handler(CallbackQueryHandler(admin_delete_config, pattern="^admin_delete_config$"))
+    app.add_handler(CallbackQueryHandler(confirm_delete_plan, pattern="^confirm_delete_plan_"))
+    app.add_handler(CallbackQueryHandler(delete_plan_final, pattern="^delete_plan_final_"))
+
     
 
     admin_filter = filters.User(user_id=ADMINS)

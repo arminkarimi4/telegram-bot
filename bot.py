@@ -947,8 +947,12 @@ async def menu_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 # =========================================
 async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if update.message.from_user.id not in ADMINS:
+    state = context.user_data.get("state")
+
+    # اگر ادمین در حالت خاصی نیست
+    if not state:
         return
+
     
     state = context.user_data.get("state")
     

@@ -523,50 +523,40 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
     if is_spam(context, query.from_user.id):
-
-        await query.answer(
-            "⏳ کمی صبر کن.",
-            show_alert=True
-        )
-
+        await query.answer("⏳ کمی صبر کن.", show_alert=True)
         return
 
     if not await is_user_member(context.bot, query.from_user.id):
-
         await join_required_message(update, context)
-
         return
 
     await query.answer()
 
     plan_id = int(query.data.split("_")[1])
     print("PLAN CLICKED:", plan_id)
-   
 
-    success, result = claim_plan(
-        query.from_user.id,
-        plan_id
-    )
+    success, result = claim_plan(query.from_user.id, plan_id)
 
     if success:
 
-        text = f"""
-✅ کانفیگ شما:
+        text = f"✅ کانفیگ شما:\n\n<code>{result}</code>"
 
-`{result}`
-"""
+        await query.message.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")]
+            ])
+        )
 
     else:
 
-        text = f"❌ {result}"
-
-    await query.message.edit_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")]
-        ])
-    )
+        await query.message.edit_text(
+            f"❌ {result}",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")]
+            ])
+        )
 
 
 # =========================================

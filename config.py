@@ -16,7 +16,7 @@ ADMINS = [
 SUPPORT_ID = "@arminkarimi4"
 SELLER_ID = "@arminkarimi4"
 
-DATABASE_PATH = "database/database.db"
+#DATABASE_PATH = "database/database.db"
 
 REFERRAL_REWARD = 1
 

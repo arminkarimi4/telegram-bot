@@ -13,17 +13,11 @@ from config import (
     TOKEN,
     ADMINS,
     REFERRAL_REWARD,
-    REQUIRED_CHATS
 )
 
 from db import (
     get_connection,
     init_db,
-    add_free_coins,
-    get_free_plan,
-    get_config,
-    remove_config,
-    get_user_by_id
 )
 
 from utils import (
@@ -598,26 +592,20 @@ async def open_admin_panel_from_message(update: Update, context: ContextTypes.DE
     keyboard = [
         [
             InlineKeyboardButton("📊 آمار", callback_data="admin_stats"),
-            InlineKeyboardButton("📦 موجودی", callback_data="admin_stock")
+            InlineKeyboardButton("👥 کاربران", callback_data="admin_users_by_coins")
         ],
         [
-            InlineKeyboardButton("➕ افزودن کانفیگ", callback_data="admin_add_config"),
-            InlineKeyboardButton("🔄 ریست", callback_data="admin_reset")
+            InlineKeyboardButton("🔍 جستجو", callback_data="admin_find_user"),
+            InlineKeyboardButton("🎯 تنظیم سکه", callback_data="admin_set_coins")
         ],
         [
-            InlineKeyboardButton("👥 کاربران", callback_data="admin_users_by_coins"),
-            InlineKeyboardButton("🔍 جستجو", callback_data="admin_find_user")
+            InlineKeyboardButton("⛔ بلاک", callback_data="admin_block"),
+            InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock")
         ],
         [
-            InlineKeyboardButton("➕ افزایش سکه", callback_data="admin_add_coins"),
-            InlineKeyboardButton("➖ کاهش سکه", callback_data="admin_remove_coins")
+            InlineKeyboardButton("📂 مدیریت پلن‌ها", callback_data="admin_manage_plans")
         ],
         [
-            InlineKeyboardButton("🎯 تنظیم سکه", callback_data="admin_set_coins"),
-            InlineKeyboardButton("⛔ بلاک", callback_data="admin_block")
-        ],
-        [
-            InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock"),
             InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")
         ]
     ]
@@ -628,13 +616,13 @@ async def open_admin_panel_from_message(update: Update, context: ContextTypes.DE
     )
 
 
+
 # =========================================
 # پنل ادمین
 # =========================================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
-
     if not query:
         return
 
@@ -656,32 +644,22 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("📊 آمار", callback_data="admin_stats"),
-            InlineKeyboardButton("📦 موجودی", callback_data="admin_stock")
+            InlineKeyboardButton("👥 کاربران", callback_data="admin_users_by_coins")
         ],
         [
-            InlineKeyboardButton("➕ افزودن کانفیگ", callback_data="admin_add_config"),
-            InlineKeyboardButton("🔄 ریست", callback_data="admin_reset")
+            InlineKeyboardButton("🔍 جستجو", callback_data="admin_find_user"),
+            InlineKeyboardButton("🎯 تنظیم سکه", callback_data="admin_set_coins")
         ],
         [
-            InlineKeyboardButton("👥 کاربران", callback_data="admin_users_by_coins"),
-            InlineKeyboardButton("🔍 جستجو", callback_data="admin_find_user")
+            InlineKeyboardButton("⛔ بلاک", callback_data="admin_block"),
+            InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock")
         ],
         [
-            InlineKeyboardButton("➕ افزایش سکه", callback_data="admin_add_coins"),
-            InlineKeyboardButton("➖ کاهش سکه", callback_data="admin_remove_coins")
+            InlineKeyboardButton("📂 مدیریت پلن‌ها", callback_data="admin_manage_plans")
         ],
         [
-            InlineKeyboardButton("🎯 تنظیم سکه", callback_data="admin_set_coins"),
-            InlineKeyboardButton("⛔ بلاک", callback_data="admin_block")
-        ],
-        [
-            InlineKeyboardButton("✅ آنبلاک", callback_data="admin_unblock"),
             InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")
-        ],
-        [
-            InlineKeyboardButton("🗑 حذف کانفیگ", callback_data="admin_delete_config")
         ]
-        
     ]
 
     await query.message.edit_text(
@@ -689,46 +667,46 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+# =========================================
+# زیرمنوی مدیریت پلن‌ها
+# =========================================
+async def admin_manage_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-# =========================================
-# مدیریت حذف کانفیگ
-# =========================================
-async def admin_delete_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    conn = get_connection()
-    cur = conn.cursor()
-
-    keyboard = []
-
-    for plan_id in range(1, 5):
-        cur.execute("SELECT COUNT(*) FROM inventory WHERE plan_id=?", (plan_id,))
-        count = cur.fetchone()[0]
-
-        keyboard.append([
-            InlineKeyboardButton(
-                f"🗑 حذف پلن {plan_id} ({count} عدد)",
-                callback_data=f"confirm_delete_plan_{plan_id}"
-            )
-        ])
-
-    conn.close()
-
-    keyboard.append([
-        InlineKeyboardButton("🧹 حذف تکی (با ارسال متن)", callback_data="delete_single_config_start")
-    ])
-    keyboard.append([
-        InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")
-    ])
+    keyboard = [
+        [
+            InlineKeyboardButton("➕ شارژ پلن 1", callback_data="admin_add_config_1"),
+            InlineKeyboardButton("🗑 حذف پلن 1", callback_data="confirm_delete_plan_1")
+        ],
+        [
+            InlineKeyboardButton("➕ شارژ پلن 2", callback_data="admin_add_config_2"),
+            InlineKeyboardButton("🗑 حذف پلن 2", callback_data="confirm_delete_plan_2")
+        ],
+        [
+            InlineKeyboardButton("➕ شارژ پلن 3", callback_data="admin_add_config_3"),
+            InlineKeyboardButton("🗑 حذف پلن 3", callback_data="confirm_delete_plan_3")
+        ],
+        [
+            InlineKeyboardButton("➕ شارژ پلن 4", callback_data="admin_add_config_4"),
+            InlineKeyboardButton("🗑 حذف پلن 4", callback_data="confirm_delete_plan_4")
+        ],
+        [
+            InlineKeyboardButton("📦 موجودی پلن‌ها", callback_data="admin_stock")
+        ],
+        [
+            InlineKeyboardButton("🗑 حذف لینک خراب", callback_data="delete_single_config_start")
+        ],
+        [
+            InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")
+        ]
+    ]
 
     await query.message.edit_text(
-        "متن کامل کانفیگ را ارسال کن:",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("❌ انصراف", callback_data="admin_delete_config")]
-        ])
+        "📂 مدیریت پلن‌ها",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
 
 # =========================================
 # آمار
@@ -841,27 +819,6 @@ async def admin_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
     )
 
-#===============
-# افزایش سکه
-#===============
-
-async def admin_add_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    context.user_data["state"] = "admin_add_coins_user"
-    await query.message.edit_text("آیدی کاربر را برای افزایش سکه ارسال کن")
-
-#===============
-#کاهش سکه
-#===============
-
-async def admin_remove_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    context.user_data["state"] = "admin_remove_coins_user"
-    await query.message.edit_text("آیدی کاربر را برای کاهش سکه ارسال کن")
 
 #===================
 #تغییر موجودی کامل
@@ -874,46 +831,47 @@ async def admin_set_coins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["state"] = "admin_set_coins_user"
     await query.message.edit_text("آیدی کاربر را برای تنظیم موجودی ارسال کن")
 
+
 # =========================================
-# افزودن کانفیگ
+# شارژ پلن‌ها (افزودن چند کانفیگ برای یک پلن)
 # =========================================
-async def admin_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-
-    await query.answer()
-
-    context.user_data["state"] = "waiting_config"
-
-    text = """
-کانفیگ را با این فرمت بفرست:
-
-plan_id|config
-
-مثال:
-
-1|vless://xxxxx
-"""
-
-
-    await query.message.edit_text(
-    text,
-    reply_markup=InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ لغو", callback_data="cancel_add_config")]
-    ])
-)
-
-async def cancel_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+async def admin_add_config_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    context.user_data["state"] = None
+    # مشخص کردن شماره پلن از دکمه‌ای که زده شده
+    plan_id = int(query.data.split("_")[-1])
+    context.user_data["add_plan_id"] = plan_id
+    context.user_data["state"] = "waiting_config_bulk"
 
     await query.message.edit_text(
-        "عملیات لغو شد",
+        f"📥 کانفیگ‌های پلن {plan_id} را بفرست.\n\n"
+        f"🔹 هر کانفیگ باید در یک خط باشد.\n"
+        f"🔹 فقط لینک‌هایی مثل:\n"
+        f"vless://...\nvmess://...\ntrojan://...\nss://...\n\n"
+        f"✔️ مثال:\n"
+        f"vless://aaa\n"
+        f"vmess://bbb\n"
+        f"trojan://ccc",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")]
+            [InlineKeyboardButton("❌ لغو", callback_data="admin_manage_plans")]
+        ])
+    )
+
+
+# =========================================
+# شروع حذف تکی کانفیگ / حذف لینک خراب
+# =========================================
+async def delete_single_config_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    context.user_data["state"] = "waiting_for_delete_config"
+
+    await query.message.edit_text(
+        "🔍 کانفیگ کامل را ارسال کن تا حذف شود:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ انصراف", callback_data="admin_manage_plans")]
         ])
     )
 
@@ -1001,83 +959,78 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if not state:
         return await menu_message_handler(update, context)
 
-
     # =========================
-    #  افزودن کانفیگ به انبار
+    # شارژ پلن‌ها — افزودن چند کانفیگ
     # =========================
-    elif state == "waiting_config":
+    elif state == "waiting_config_bulk":
+        plan_id = context.user_data.get("add_plan_id")
+        lines = update.message.text.split("\n")
 
-        lines = update.message.text.strip().split("\n")
-
-        if len(lines) < 2:
-            await update.message.reply_text("❌ فرمت اشتباه است.")
-            return
-
-        try:
-            plan_id = int(lines[0].strip())
-        except:
-            await update.message.reply_text("❌ پلن آیدی باید عدد باشد.")
-            return
-
-        configs = lines[1:]
-
-        conn = sqlite3.connect("bot.db")
+        conn = get_connection()
         cur = conn.cursor()
 
         added = 0
 
-        for config in configs:
+        for cfg in lines:
+            cfg = cfg.strip()
 
-            config = config.strip()
-
-            if not config:
-                continue
-
-            if not config.startswith(("vless://", "vmess://", "trojan://", "ss://")):
-                continue
-
-            cur.execute("""
-            INSERT INTO inventory (plan_id, config, is_used)
-            VALUES (?, ?, 0)
-            """, (plan_id, config))
-
-            added += 1
+            if cfg.startswith(("vless://", "vmess://", "trojan://", "ss://")):
+                cur.execute(
+                    "INSERT INTO inventory (plan_id, config, is_used) VALUES (?, ?, 0)",
+                    (plan_id, cfg)
+                )
+                added += 1
 
         conn.commit()
         conn.close()
 
         context.user_data["state"] = None
+        context.user_data.pop("add_plan_id", None)
 
         await update.message.reply_text(
-            f"✅ {added} کانفیگ برای پلن {plan_id} اضافه شد."
+            f"✅ {added} کانفیگ برای پلن {plan_id} اضافه شد.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_manage_plans")]
+            ])
         )
+        return
 
 
-    # =========================
-    #  پیدا کردن کاربر
-    # =========================
+
+# =========================
+#  پیدا کردن کاربر
+# =========================
     elif state == "find_user":
-        user_id = int(update.message.text)
+        try:
+           user_id = int(update.message.text)
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+            return   
+
         user = get_user(user_id)
 
         if user:
-            await update.message.reply_text(
-                f"ID: {user['user_id']}\n"
-                f"Coins: {user['coins']}\n"
-                f"Invites: {user['invites']}\n"
-                f"Blocked: {user['is_blocked']}"
-            )
+                await update.message.reply_text(
+                   f"ID: {user['user_id']}\n"
+                   f"Coins: {user['coins']}\n"
+                   f"Invites: {user['invites']}\n"
+                   f"Blocked: {user['is_blocked']}"
+                )
         else:
             await update.message.reply_text("کاربر پیدا نشد")
 
         context.user_data["state"] = None
 
 
-    # =========================
-    #  بلاک کاربر
-    # =========================
+# =========================
+#  بلاک کاربر
+# =========================
     elif state == "block_user":
-        user_id = int(update.message.text)
+        try:
+            user_id = int(update.message.text)
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+            return
 
         conn = get_connection()
         cur = conn.cursor()
@@ -1089,11 +1042,15 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["state"] = None
 
 
-    # =========================
-    #  آنبلاک
-    # =========================
+# =========================
+#  آنبلاک
+# =========================
     elif state == "unblock_user":
-        user_id = int(update.message.text)
+        try:
+            user_id = int(update.message.text)
+        except:
+            await update.message.reply_text("❌ آیدی نامعتبر است")
+            return
 
         conn = get_connection()
         cur = conn.cursor()
@@ -1103,105 +1060,6 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
         await update.message.reply_text("✅ کاربر آنبلاک شد")
         context.user_data["state"] = None
-
-
-    # =========================
-    #  اضافه‌کردن سکه – مرحله ۱
-    # =========================
-    
-    elif state == "admin_add_coins_user":
-        try:
-            context.user_data["target_user_id"] = int(update.message.text)
-            context.user_data["state"] = "admin_add_coins_amount"
-
-            keyboard = [
-                [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
-            ]
-
-            await update.message.reply_text(
-                "مقدار سکه‌ای که می‌خواهی اضافه شود را بفرست",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-
-        except:
-            await update.message.reply_text("❌ آیدی نامعتبر است")
-
-
-
-    # =========================
-    #  اضافه‌کردن سکه – مرحله ۲
-    # =========================
-    elif state == "admin_add_coins_amount":
-        try:
-            amount = int(update.message.text)
-            target_user_id = context.user_data.get("target_user_id")
-
-            conn = get_connection()
-            cur = conn.cursor()
-            cur.execute(
-                "UPDATE users SET coins = coins + ? WHERE user_id=?",
-                (amount, target_user_id)
-            )
-            conn.commit()
-            conn.close()
-
-            await update.message.reply_text("✅ سکه اضافه شد")
-        except:
-            await update.message.reply_text("❌ مقدار نامعتبر است")
-
-        context.user_data["state"] = None
-        context.user_data.pop("target_user_id", None)
-
-
-    # =========================
-    #  کاهش سکه – مرحله ۱
-    # =========================
-    elif state == "admin_remove_coins_user":
-        try:
-            context.user_data["target_user_id"] = int(update.message.text)
-            context.user_data["state"] = "admin_remove_coins_amount"
-
-            keyboard = [
-                [InlineKeyboardButton("❌ انصراف", callback_data="admin_panel")]
-            ]
-
-            await update.message.reply_text(
-                "مقدار سکه‌ای که می‌خواهی کم شود را بفرست",
-                 reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-
-        except:
-            await update.message.reply_text("❌ آیدی نامعتبر است")
-
-
-    # =========================
-    #  کاهش سکه – مرحله ۲
-    # =========================
-    elif state == "admin_remove_coins_amount":
-        try:
-            amount = int(update.message.text)
-            target_user_id = context.user_data.get("target_user_id")
-
-            conn = get_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE users
-                SET coins = CASE
-                    WHEN coins - ? < 0 THEN 0
-                    ELSE coins - ?
-                END
-                WHERE user_id = ?
-            """, (amount, amount, target_user_id))
-            conn.commit()
-            conn.close()
-
-            await update.message.reply_text("✅ سکه با موفقیت کم شد")
-        except:
-            await update.message.reply_text("❌ مقدار نامعتبر است")
-
-        context.user_data["state"] = None
-        context.user_data.pop("target_user_id", None)
-
 
     # =========================
     #  تنظیم سکه – مرحله ۱
@@ -1272,6 +1130,9 @@ async def admin_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
 #===================================
 #تایید دو مرحبه برای حذف کانفینگ
 #====================================
+# ===================================
+# تایید دو مرحله‌ای برای حذف کانفیگ
+# ===================================
 async def confirm_delete_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -1280,7 +1141,7 @@ async def confirm_delete_plan(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     keyboard = [
         [InlineKeyboardButton("✅ بله، حذف کن", callback_data=f"delete_plan_final_{plan_id}")],
-        [InlineKeyboardButton("❌ لغو", callback_data="admin_delete_config")]
+        [InlineKeyboardButton("❌ لغو", callback_data="admin_manage_plans")] # اصلاح شد
     ]
 
     await query.message.edit_text(
@@ -1305,7 +1166,7 @@ async def delete_plan_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.edit_text(
         f"✅ تعداد {deleted_count} کانفیگ از پلن {plan_id} حذف شد.",
         reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔙 بازگشت به مدیریت حذف", callback_data="admin_delete_config")]]
+            [[InlineKeyboardButton("🔙 بازگشت به مدیریت حذف", callback_data="admin_manage_plans")]]
         )
     )
 
@@ -1499,13 +1360,11 @@ def main():
     app.add_handler(CallbackQueryHandler(claim_callback, pattern="^plan_"))
 
     app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
+    app.add_handler(CallbackQueryHandler(admin_manage_plans, pattern="^admin_manage_plans$"))
     app.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
     app.add_handler(CallbackQueryHandler(admin_stock, pattern="^admin_stock$"))
-    app.add_handler(CallbackQueryHandler(admin_add_config, pattern="^admin_add_config$"))
     app.add_handler(CallbackQueryHandler(admin_reset, pattern="^admin_reset$"))
     app.add_handler(CallbackQueryHandler(admin_users_by_coins, pattern="^admin_users_by_coins$"))
-    app.add_handler(CallbackQueryHandler(admin_add_coins, pattern="^admin_add_coins$"))
-    app.add_handler(CallbackQueryHandler(admin_remove_coins, pattern="^admin_remove_coins$"))
     app.add_handler(CallbackQueryHandler(admin_set_coins, pattern="^admin_set_coins$"))
 
 
@@ -1515,11 +1374,10 @@ def main():
     
     app.add_handler(CallbackQueryHandler(admin_find_user, pattern="^admin_find_user$"))
     app.add_handler(CallbackQueryHandler(admin_block, pattern="^admin_block$"))
-    app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))
-    app.add_handler(CallbackQueryHandler(cancel_add_config, pattern="^cancel_add_config$"))   
+    app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))  
     
-    #مدیریت حذف کانفینگ
-    app.add_handler(CallbackQueryHandler(admin_delete_config, pattern="^admin_delete_config$"))
+    app.add_handler(CallbackQueryHandler(admin_add_config_start, pattern="^admin_add_config_"))
+    app.add_handler(CallbackQueryHandler(delete_single_config_start, pattern="^delete_single_config_start$"))
     app.add_handler(CallbackQueryHandler(confirm_delete_plan, pattern="^confirm_delete_plan_"))
     app.add_handler(CallbackQueryHandler(delete_plan_final, pattern="^delete_plan_final_"))
 

@@ -1,7 +1,7 @@
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.path.join(BASE_DIR, "database", "bot.db")
+DATABASE_PATH = os.path.join(BASE_DIR, "database", "database.db")
 
 TOKEN = "8720876053:AAEpwBoaAEQZqtwbsqz98-7oA3tu-12i2W0"
 

@@ -9,6 +9,7 @@ os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 # اتصال دیتابیس
 # =========================================
 def get_connection():
+    print("DATABASE PATH =", DATABASE_PATH)
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn

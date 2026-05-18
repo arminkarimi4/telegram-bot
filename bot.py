@@ -7,6 +7,13 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+
+import os  # اگر از قبل نداری
+from config import DATABASE_PATH  # کنار بقیه importهای config
+
+print("RUNNING BOT FROM:", os.getcwd())
+print("DATABASE PATH USED BY BOT:", os.path.abspath(DATABASE_PATH))
+
 import sqlite3
 
 from config import (

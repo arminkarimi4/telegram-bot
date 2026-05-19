@@ -15,7 +15,7 @@ def get_connection():
     return conn
 
 # =========================================
-# ساخت جداول
+# ساخت جداول و ترمیم خودکار (Auto-Patch)
 # =========================================
 def init_db():
 
@@ -88,7 +88,30 @@ def init_db():
     )
     """)
 
+    # =========================================
+    # بررسی و اضافه کردن ستون‌های جاافتاده
+    # =========================================
+    
+    # بررسی جدول inventory
+    cur.execute("PRAGMA table_info(inventory)")
+    inv_columns = [row['name'] for row in cur.fetchall()]
+    
+    if "used_by" not in inv_columns:
+        cur.execute("ALTER TABLE inventory ADD COLUMN used_by INTEGER;")
+        
+    if "used_at" not in inv_columns:
+        cur.execute("ALTER TABLE inventory ADD COLUMN used_at TIMESTAMP;")
+
+    # بررسی جدول users
+    cur.execute("PRAGMA table_info(users)")
+    user_columns = [row['name'] for row in cur.fetchall()]
+    
+    if "is_blocked" not in user_columns:
+        cur.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0;")
+
+    # =========================================
     # ثبت پلن‌ها
+    # =========================================
     plans = [
         (1, "15MB", 1, "15MB"),
         (2, "50MB", 3, "50MB"),
@@ -193,7 +216,7 @@ def remove_config(plan_id, config):
     conn.close()
 
 #==============================
-#دیدن موجودی کاربر برای ادمین
+# دیدن موجودی کاربر برای ادمین
 #================================
 
 

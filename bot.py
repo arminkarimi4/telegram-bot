@@ -8,8 +8,8 @@ from telegram.ext import (
     ContextTypes,
 )
 
-import os  # اگر از قبل نداری
-from config import DATABASE_PATH  # کنار بقیه importهای config
+import os 
+from config import DATABASE_PATH 
 
 print("RUNNING BOT FROM:", os.getcwd())
 print("DATABASE PATH USED BY BOT:", os.path.abspath(DATABASE_PATH))

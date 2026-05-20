@@ -80,10 +80,6 @@ async def join_required_message(update, context):
         )
 
 
-#===============================
-#تابع پرداخت پاداش
-#================================
-
 async def process_referral_reward(invited_id, context):
 
     conn = get_connection()
@@ -103,6 +99,7 @@ async def process_referral_reward(invited_id, context):
     inviter_id = user["invited_by"]
     rewarded = user["referral_rewarded"]
 
+    # فقط اگر معرف داشت و هنوز پاداش نگرفته بود:
     if inviter_id and rewarded == 0:
 
         cur.execute("""
@@ -119,14 +116,17 @@ async def process_referral_reward(invited_id, context):
 
         conn.commit()
 
+        # ارسال پیام به دعوت‌کننده
         try:
             await context.bot.send_message(
                 inviter_id,
                 f"🎉 یک نفر با لینک شما عضو شد و {REFERRAL_REWARD} سکه گرفتید."
             )
-        except:
-            pass
-
+        except Exception as e:
+            # اینجا فقط در صورت بروز خطا در ارسال پیام، لاگ می‌اندازیم
+            print(f"Could not send message: {e}")
+    
+    # تمام کارهای لازم داخل if انجام شد، پس فقط دیتابیس را می‌بندیم
     conn.close()
 
 

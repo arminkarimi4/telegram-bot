@@ -123,39 +123,37 @@ async def process_referral_reward(invited_id, context):
                 f"🎉 یک نفر با لینک شما عضو شد و {REFERRAL_REWARD} سکه گرفتید."
             )
         except Exception as e:
-            # اینجا فقط در صورت بروز خطا در ارسال پیام، لاگ می‌اندازیم
             print(f"Could not send message: {e}")
     
-    # تمام کارهای لازم داخل if انجام شد، پس فقط دیتابیس را می‌بندیم
     conn.close()
 
 
-# =========================================
-# بررسی عضویت
-# =========================================
 async def check_membership_callback(update, context):
-
     query = update.callback_query
     await query.answer()
-
+    
     user_id = query.from_user.id
-
-    if not await is_user_member(context.bot, user_id):
+    
+    # ۱. بررسی عضویت و لاگ کردن نتیجه برای دیباگ
+    is_member = await is_user_member(context.bot, user_id)
+    print(f"DEBUG: User {user_id} requested membership check. Result: {is_member}")
+    
+    if not is_member:
+        # اگر کاربر عضو نیست
         await query.message.edit_text(
-            "❌ هنوز عضو همه کانال‌ها نیستی.",
+            "❌ هنوز عضو همه کانال‌ها نیستی. لطفاً ابتدا عضو شو و دوباره دکمه زیر را بزن.",
             reply_markup=build_join_keyboard()
         )
         return
 
-    # --- بخش جدید: واریز پاداش در لحظه تایید عضویت ---
+    # ۲. اگر کاربر عضو بود، پاداش داده می‌شود
+    # نکته: مطمئن شو در تابع process_referral_reward هم چک کرده باشی 
+    # که آیا این کاربر قبلاً پاداش رفرال گرفته یا نه (که جلوگیری از تقلب بشه)
     await process_referral_reward(user_id, context)
-    # -----------------------------------------------
 
     clear_spam(context, user_id)
 
-    await query.message.edit_text(
-        "✅ عضویت شما تایید شد."
-    )
+    await query.message.edit_text("✅ عضویت شما تایید شد.")
 
 
 # =========================================
@@ -170,7 +168,7 @@ async def register_user(
     conn = get_connection()
     cur = conn.cursor()
 
-    # بررسی اینکه کاربر قبلاً وجود دارد یا نه
+    # بررسی اینکه کاربر قبلاً وجود داره یا نه
     cur.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
     exists = cur.fetchone()
 
@@ -1349,7 +1347,6 @@ def main():
         return None
 
 
-# این رو به app.add_handler اضافه کن:
     app.add_handler(TypeHandler(object, private_chat_filter), group=-1)
 
 
@@ -1364,7 +1361,6 @@ def main():
         )
     )
 
-    # callbacks (همه filters=... حذف شدند)
     app.add_handler(CallbackQueryHandler(account_callback, pattern="^account$"))
     app.add_handler(CallbackQueryHandler(free_coin_callback, pattern="^free_coin$"))
     app.add_handler(CallbackQueryHandler(free_plan_callback, pattern="^free_plan$"))

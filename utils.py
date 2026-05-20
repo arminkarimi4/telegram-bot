@@ -54,24 +54,19 @@ def build_join_keyboard():
 
     return InlineKeyboardMarkup(keyboard)
 
-
 async def is_user_member(bot, user_id):
-    """
-    بررسی کامل عضویت کاربر در همه کانال‌ها یا گروه‌های اجباری
-    """
-
     for chat in REQUIRED_CHATS:
         try:
             member = await bot.get_chat_member(chat["chat_id"], user_id)
-
-            # وضعیت‌های خروج
+            # اگر وضعیت عضو نباشد (left یا kicked)
             if member.status in ["left", "kicked"]:
                 return False
-
-        except:
-            return False
-
+        except Exception as e:
+            print(f"Error checking membership in {chat['chat_id']}: {e}")
+            # اگر خطا داد (مثلا ربات ادمین نیست)، حتما باید False برگردانیم
+            return False 
     return True
+
 
 
 # =========================

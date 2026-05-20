@@ -31,7 +31,8 @@ def init_db():
         invites INTEGER DEFAULT 0,
         invited_by INTEGER,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_blocked INTEGER DEFAULT 0
+        is_blocked INTEGER DEFAULT 0,
+        referral_rewarded INTEGER DEFAULT 0
     )
     """)
 
@@ -108,6 +109,9 @@ def init_db():
     
     if "is_blocked" not in user_columns:
         cur.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0;")
+        
+    if "referral_rewarded" not in user_columns:
+        cur.execute("ALTER TABLE users ADD COLUMN referral_rewarded INTEGER DEFAULT 0;")
 
     # =========================================
     # ثبت پلن‌ها

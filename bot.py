@@ -7,13 +7,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-
-import os 
-from config import DATABASE_PATH 
-
-print("RUNNING BOT FROM:", os.getcwd())
-print("DATABASE PATH USED BY BOT:", os.path.abspath(DATABASE_PATH))
-
 import sqlite3
 
 from config import (
@@ -83,25 +76,76 @@ async def join_required_message(update, context):
         )
 
 
+#===============================
+#تابع پرداخت پاداش
+#================================
+
+async def process_referral_reward(invited_id, context):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT invited_by, referral_rewarded FROM users WHERE user_id=?",
+        (invited_id,)
+    )
+
+    user = cur.fetchone()
+
+    if not user:
+        conn.close()
+        return
+
+    inviter_id = user["invited_by"]
+    rewarded = user["referral_rewarded"]
+
+    if inviter_id and rewarded == 0:
+
+        cur.execute("""
+        UPDATE users
+        SET coins = coins + ?, invites = invites + 1
+        WHERE user_id=?
+        """, (REFERRAL_REWARD, inviter_id))
+
+        cur.execute("""
+        UPDATE users
+        SET referral_rewarded = 1
+        WHERE user_id=?
+        """, (invited_id,))
+
+        conn.commit()
+
+        try:
+            await context.bot.send_message(
+                inviter_id,
+                f"🎉 یک نفر با لینک شما عضو شد و {REFERRAL_REWARD} سکه گرفتید."
+            )
+        except:
+            pass
+
+    conn.close()
+
+
 # =========================================
 # بررسی عضویت
 # =========================================
 async def check_membership_callback(update, context):
 
     query = update.callback_query
-
     await query.answer()
 
     user_id = query.from_user.id
 
     if not await is_user_member(context.bot, user_id):
-
         await query.message.edit_text(
             "❌ هنوز عضو همه کانال‌ها نیستی.",
             reply_markup=build_join_keyboard()
         )
-
         return
+
+    # --- بخش جدید: واریز پاداش در لحظه تایید عضویت ---
+    await process_referral_reward(user_id, context)
+    # -----------------------------------------------
 
     clear_spam(context, user_id)
 
@@ -119,19 +163,15 @@ async def register_user(
     invited_by=None,
     bot=None
 ):
-
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT * FROM users WHERE user_id=?",
-        (user_id,)
-    )
-
+    # بررسی اینکه کاربر قبلاً وجود دارد یا نه
+    cur.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
     exists = cur.fetchone()
 
     if not exists:
-
+        # ثبت کاربر جدید
         cur.execute("""
         INSERT INTO users(
             user_id,
@@ -139,68 +179,28 @@ async def register_user(
             invited_by
         )
         VALUES(?,?,?)
-        """, (
-            user_id,
-            username,
-            invited_by
-        ))
+        """, (user_id, username, invited_by))
 
         # =========================
-        # رفرال
+        # ثبت رفرال (بدون دادن سکه)
         # =========================
         if invited_by and invited_by != user_id:
-
-            cur.execute(
-                "SELECT * FROM users WHERE user_id=?",
-                (invited_by,)
-            )
-
+            cur.execute("SELECT user_id FROM users WHERE user_id=?", (invited_by,))
             inviter = cur.fetchone()
 
             if inviter:
-
-                inviter_joined = False
-
-                try:
-                    inviter_joined = await is_user_member(
-                        bot,
-                        invited_by
-                    )
-                except:
-                    inviter_joined = False
-
-                # فقط اگر دعوت‌کننده عضو بود
-                if inviter_joined:
-
-                    cur.execute("""
-                    INSERT OR IGNORE INTO referrals(
-                        inviter_id,
-                        invited_id
-                    )
-                    VALUES(?,?)
-                    """, (
-                        invited_by,
-                        user_id
-                    ))
-
-                    cur.execute("""
-                    UPDATE users
-                    SET
-                        coins = coins + ?,
-                        invites = invites + 1
-                    WHERE user_id=?
-                    """, (
-                        REFERRAL_REWARD,
-                        invited_by
-                    ))
-
-                else:
-
-                    print("Inviter is not joined required channels")
+                cur.execute("""
+                INSERT OR IGNORE INTO referrals(
+                    inviter_id,
+                    invited_id
+                )
+                VALUES(?,?)
+                """, (invited_by, user_id))
 
         conn.commit()
 
     conn.close()
+
 
 # =========================================
 # گرفتن کاربر
@@ -1351,43 +1351,46 @@ def main():
     )
 
     # callbacks
-    app.add_handler(CallbackQueryHandler(account_callback, pattern="^account$"))
-    app.add_handler(CallbackQueryHandler(free_coin_callback, pattern="^free_coin$"))
-    app.add_handler(CallbackQueryHandler(free_plan_callback, pattern="^free_plan$"))
-    app.add_handler(CallbackQueryHandler(claim_callback, pattern="^plan_"))
+    app.add_handler(CallbackQueryHandler(account_callback, pattern="^account$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(free_coin_callback, pattern="^free_coin$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(free_plan_callback, pattern="^free_plan$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(claim_callback, pattern="^plan_\d+$", filters=filters.ChatType.PRIVATE)) # دقت کن، pattern باید با $ تموم بشه چون خود plan_id بعدش میاد
 
-    app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
-    app.add_handler(CallbackQueryHandler(admin_manage_plans, pattern="^admin_manage_plans$"))
-    app.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
-    app.add_handler(CallbackQueryHandler(admin_stock, pattern="^admin_stock$"))
-    app.add_handler(CallbackQueryHandler(admin_reset, pattern="^admin_reset$"))
-    app.add_handler(CallbackQueryHandler(admin_users_by_coins, pattern="^admin_users_by_coins$"))
-    app.add_handler(CallbackQueryHandler(admin_set_coins, pattern="^admin_set_coins$"))
+    # Admin callbacks - اینها را هم به private محدود کن، چون کاربر عادی نباید به پنل ادمین دسترسی داشته باشه
+    app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_manage_plans, pattern="^admin_manage_plans$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_stock, pattern="^admin_stock$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_reset, pattern="^admin_reset$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_users_by_coins, pattern="^admin_users_by_coins$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_set_coins, pattern="^admin_set_coins$", filters=filters.ChatType.PRIVATE))
 
 
-    app.add_handler(CallbackQueryHandler(buy_plan_callback, pattern="^buy_plan$"))
-    app.add_handler(CallbackQueryHandler(support_callback, pattern="^support$"))
-    app.add_handler(CallbackQueryHandler(back_main, pattern="^back_main$"))
-    
-    app.add_handler(CallbackQueryHandler(admin_find_user, pattern="^admin_find_user$"))
-    app.add_handler(CallbackQueryHandler(admin_block, pattern="^admin_block$"))
-    app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$"))  
-    
-    app.add_handler(CallbackQueryHandler(admin_add_config_start, pattern="^admin_add_config_"))
-    app.add_handler(CallbackQueryHandler(delete_single_config_start, pattern="^delete_single_config_start$"))
-    app.add_handler(CallbackQueryHandler(confirm_delete_plan, pattern="^confirm_delete_plan_"))
-    app.add_handler(CallbackQueryHandler(delete_plan_final, pattern="^delete_plan_final_"))
+    app.add_handler(CallbackQueryHandler(buy_plan_callback, pattern="^buy_plan$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(support_callback, pattern="^support$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(back_main, pattern="^back_main$", filters=filters.ChatType.PRIVATE))
 
-    
+    app.add_handler(CallbackQueryHandler(admin_find_user, pattern="^admin_find_user$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_block, pattern="^admin_block$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(admin_unblock, pattern="^admin_unblock$", filters=filters.ChatType.PRIVATE))
 
-    admin_filter = filters.User(user_id=ADMINS)
+    app.add_handler(CallbackQueryHandler(admin_add_config_start, pattern="^admin_add_config_", filters=filters.ChatType.PRIVATE)) # این هم pattern اش باید کامل باشه
+    app.add_handler(CallbackQueryHandler(delete_single_config_start, pattern="^delete_single_config_start$", filters=filters.ChatType.PRIVATE))
+    app.add_handler(CallbackQueryHandler(confirm_delete_plan, pattern="^confirm_delete_plan_", filters=filters.ChatType.PRIVATE)) # این هم pattern اش باید کامل باشه
+    app.add_handler(CallbackQueryHandler(delete_plan_final, pattern="^delete_plan_final_", filters=filters.ChatType.PRIVATE)) # این هم pattern اش باید کامل باشه
 
+
+    # Message handlers (فقط متن‌های معمولی، نه دستورات)
+    admin_filter = filters.User(user_id=ADMINS) # این فیلتر ادمین‌هاست
+
+    # پیام‌های متنی ادمین در چت خصوصی
     app.add_handler(
-        MessageHandler(admin_filter & filters.TEXT & ~filters.COMMAND, admin_message_handler)
+        MessageHandler(admin_filter & filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, admin_message_handler)
     )
 
+    # پیام‌های متنی عادی کاربران در چت خصوصی
     app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, menu_message_handler)
+        MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, menu_message_handler)
     )
 
 

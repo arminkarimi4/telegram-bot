@@ -13,3 +13,17 @@ except sqlite3.OperationalError as e:
     print("خطا:", e)
 
 conn.close()
+
+# fix_bot.py
+file_path = 'bot.py'
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# جایگزین کردن عبارت‌های اشتباه با فضای خالی
+new_content = content.replace(', filters=filters.ChatType.PRIVATE', '')
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(new_content)
+
+print("فایل با موفقیت اصلاح شد!")

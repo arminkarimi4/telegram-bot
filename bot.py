@@ -1351,7 +1351,7 @@ def main():
     )
 
     # callbacks
-    app.add_handler(CallbackQueryHandler(account_callback, pattern="^account$", filters=filters.ChatType.PRIVATE))
+    #app.add_handler(CallbackQueryHandler(account_callback, pattern="^account$", filters=filters.ChatType.PRIVATE))
     app.add_handler(CallbackQueryHandler(free_coin_callback, pattern="^free_coin$", filters=filters.ChatType.PRIVATE))
     app.add_handler(CallbackQueryHandler(free_plan_callback, pattern="^free_plan$", filters=filters.ChatType.PRIVATE))
     app.add_handler(CallbackQueryHandler(claim_callback, pattern="^plan_\d+$", filters=filters.ChatType.PRIVATE)) # دقت کن، pattern باید با $ تموم بشه چون خود plan_id بعدش میاد
